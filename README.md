@@ -107,6 +107,11 @@ VARIABOT/
 
 ## 📚 Documentation
 
+### Project Organization
+- **[Copilot Instructions](copilot_instructions.md)**: AI development guidelines
+- **[Organization Instructions](organization_instructions.md)**: Repository structure and workflow
+- **[Reference Vault](reference_vault/)**: Complete standards and guidelines
+
 ### Android Rooting
 - **[Android Rooting Guide](android_rooting/docs/ANDROID_ROOTING_GUIDE.md)**: Complete setup and usage guide
 - **[Linux Networking Commands](android_rooting/docs/LINUX_NETWORKING_COMMANDS_CHEATSHEET.md)**: Network security cheatsheet
