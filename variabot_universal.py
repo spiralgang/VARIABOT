@@ -118,6 +118,27 @@ class VariabotUniversalInterface:
         else:
             print("❌ No suitable bot found for current platform")
     
+    def get_android_version(self) -> str:
+        """Get Android version from system properties or environment"""
+        # First try environment variables (Termux provides this)
+        android_version = 'unknown'
+        
+        # Check if we have Android runtime information
+        runtime_root = os.getenv('ANDROID_RUNTIME_ROOT', '')
+        if '/apex/com.android.runtime' in runtime_root:
+            android_version = '10+'  # APEX modules indicate Android 10+
+        
+        # Try to get more specific version from getprop if available
+        try:
+            result = subprocess.run(['getprop', 'ro.build.version.release'], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and result.stdout.strip():
+                android_version = result.stdout.strip()
+        except:
+            pass
+        
+        return android_version
+    
     def launch_web_interface(self):
         """Launch Flask web interface for lightweight deployment."""
         if not FLASK_AVAILABLE:
