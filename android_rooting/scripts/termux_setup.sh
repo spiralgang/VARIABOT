@@ -22,8 +22,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
-TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+# Configuration - Use environment variables for Termux paths
+TERMUX_PREFIX="${PREFIX:-}"
+if [[ -z "$TERMUX_PREFIX" ]]; then
+    log_error "PREFIX environment variable not set - not running in Termux?"
+    exit 1
+fi
 SETUP_DIR="$HOME/.android_rooting_setup"
 LOG_FILE="$HOME/termux_setup_$(date +%Y%m%d_%H%M%S).log"
 
@@ -98,91 +102,74 @@ update_termux_packages() {
     return 0
 }
 
-# Install required packages
+# Install required packages using proper Termux package manager
 install_required_packages() {
-    log_info "Installing required packages..."
+    log_info "Installing required packages using Termux pkg manager..."
     
-    local packages=(
-        "python"           # Python interpreter
-        "python-pip"       # Python package installer
-        "git"             # Version control
-        "curl"            # HTTP client
-        "wget"            # File downloader
-        "nano"            # Text editor
-        "vim"             # Advanced text editor
-        "openssh"         # SSH client/server
-        "rsync"           # File synchronization
-        "zip"             # Archive utility
-        "unzip"           # Archive extractor
-        "tree"            # Directory tree viewer
-        "htop"            # Process monitor
-        "tmux"            # Terminal multiplexer
-        "jq"              # JSON processor
-        "bc"              # Calculator
-        "proot"           # User-space chroot
-        "tsu"             # Termux su
-        "termux-api"      # Termux API access
-        "termux-tools"    # Termux utilities
-    )
-    
-    local failed_packages=()
-    
-    for package in "${packages[@]}"; do
-        log_info "Installing $package..."
-        if pkg install "$package" -y; then
-            log_info "✓ $package installed successfully"
-        else
-            log_warn "✗ Failed to install $package"
-            failed_packages+=("$package")
-        fi
-    done
-    
-    if [[ ${#failed_packages[@]} -gt 0 ]]; then
-        log_warn "Failed to install: ${failed_packages[*]}"
-        log_warn "Some functionality may be limited"
-    fi
-    
-    log_info "Package installation completed"
-    return 0
-}
-
-# Setup Python environment
-setup_python_environment() {
-    log_info "Setting up Python environment..."
-    
-    # Upgrade pip
-    if ! python -m pip install --upgrade pip; then
-        log_error "Failed to upgrade pip"
+    # Use our proper package manager instead of hardcoded commands
+    if python3 "$HOME/android_rooting/utils/package_manager.py" setup; then
+        log_info "✓ Essential packages installed successfully"
+    else
+        log_error "Failed to install some essential packages"
+        log_warn "Some functionality may be limited - check package_manager.log"
         return 1
     fi
     
-    # Install required Python packages
+    # Verify critical packages
+    local critical_packages=("python" "git" "curl")
+    local missing_packages=()
+    
+    for package in "${critical_packages[@]}"; do
+        if ! command -v "$package" &>/dev/null; then
+            missing_packages+=("$package")
+        fi
+    done
+    
+    if [[ ${#missing_packages[@]} -gt 0 ]]; then
+        log_error "Critical packages missing: ${missing_packages[*]}"
+        return 1
+    fi
+    
+    log_info "Package installation completed successfully"
+    return 0
+}
+
+# Setup Python environment using proper package manager
+setup_python_environment() {
+    log_info "Setting up Python environment..."
+    
+    # Use our Python package manager instead of direct pip calls
     local python_packages=(
         "requests"        # HTTP library
-        "urllib3"         # URL handling
-        "json5"          # Enhanced JSON support
-        "pyyaml"         # YAML parser
+        "urllib3"         # URL handling  
         "psutil"         # System utilities
         "netifaces"      # Network interface info
         "cryptography"   # Cryptographic library
         "paramiko"       # SSH client
         "websocket-client" # WebSocket client
         "aiohttp"        # Async HTTP client
-        "asyncio"        # Async programming
     )
     
+    log_info "Installing Python packages using proper Termux environment..."
     for package in "${python_packages[@]}"; do
         log_info "Installing Python package: $package"
-        if python -m pip install "$package"; then
+        if python3 "$HOME/android_rooting/utils/package_manager.py" install "$package" --python; then
             log_info "✓ $package installed successfully"
         else
             log_warn "✗ Failed to install $package"
         fi
     done
     
-    # Verify Python installation
-    if python3 -c "import requests, json, threading, subprocess, os, sys"; then
-        log_info "✓ Python environment setup successful"
+    # Verify Python installation with essential imports
+    if python3 -c "
+import sys, os, subprocess, threading, json, logging
+import requests, urllib3, psutil
+print('✓ Python environment verification successful')
+print(f'Python version: {sys.version}')
+print(f'Python executable: {sys.executable}')
+print(f'Platform: {sys.platform}')
+"; then
+        log_info "✓ Python environment setup completed successfully"
     else
         log_error "Python environment verification failed"
         return 1

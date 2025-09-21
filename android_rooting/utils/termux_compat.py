@@ -29,15 +29,20 @@ class TermuxEnvironment:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.is_termux = self._detect_termux()
-        self.prefix = os.environ.get('PREFIX', '/data/data/com.termux/files/usr')
-        self.home = os.environ.get('HOME', '/data/data/com.termux/files/home')
+        # Always use $PREFIX and $HOME from environment - never hardcode paths
+        self.prefix = os.environ.get('PREFIX', '')
+        self.home = os.environ.get('HOME', '')
+        
+        # Validate Termux environment variables
+        if not self.prefix or not self.home:
+            self.logger.warning("PREFIX or HOME not set - may not be in Termux environment")
         
     def _detect_termux(self) -> bool:
         """Detect if running in Termux environment"""
         return (
             'TERMUX_VERSION' in os.environ or
             'com.termux' in os.environ.get('PREFIX', '') or
-            os.path.exists('/data/data/com.termux')
+            os.environ.get('PREFIX', '').startswith('/data/data/com.termux')
         )
     
     def get_termux_info(self) -> Dict[str, str]:
@@ -47,7 +52,7 @@ class TermuxEnvironment:
             'version': os.environ.get('TERMUX_VERSION', 'unknown'),
             'prefix': self.prefix,
             'home': self.home,
-            'shell': os.environ.get('SHELL', '/system/bin/sh'),
+            'shell': os.environ.get('SHELL', f'{self.prefix}/bin/bash'),
             'path': os.environ.get('PATH', '')
         }
         
@@ -169,8 +174,8 @@ class StorageManager:
         """Get available storage paths"""
         paths = {
             'home': self.termux_env.home,
-            'tmp': '/data/local/tmp',
-            'cache': '/data/local/tmp'
+            'tmp': os.path.join(self.termux_env.prefix, 'tmp') if self.termux_env.prefix else tempfile.gettempdir(),
+            'cache': os.path.join(self.termux_env.home, '.cache') if self.termux_env.home else tempfile.gettempdir()
         }
         
         if self.termux_env.is_termux:
@@ -198,7 +203,8 @@ class StorageManager:
         except Exception as e:
             self.logger.error(f"Failed to create temp directory: {e}")
             # Fallback to basic temp path
-            fallback_dir = f"/data/local/tmp/{prefix}_{os.getpid()}"
+            # Use system temp directory as fallback
+            fallback_dir = os.path.join(tempfile.gettempdir(), f"{prefix}_{os.getpid()}")
             os.makedirs(fallback_dir, exist_ok=True)
             return fallback_dir
 

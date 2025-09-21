@@ -75,7 +75,16 @@ class AuditEvent:
 class SecurityLogger:
     """Security-focused logger for audit events"""
     
-    def __init__(self, log_dir: str = "/data/local/tmp/android_root_logs"):
+    def __init__(self, log_dir: Optional[str] = None):
+        """Initialize logging system with Termux-compatible paths"""
+        if log_dir is None:
+            # Use Termux-compatible default paths
+            if 'PREFIX' in os.environ and 'HOME' in os.environ:
+                # Running in Termux - use HOME directory
+                log_dir = os.path.join(os.environ['HOME'], '.android_root_logs')
+            else:
+                # Fallback for non-Termux environments
+                log_dir = os.path.join(tempfile.gettempdir(), 'android_root_logs')
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         
@@ -534,7 +543,7 @@ class ColoredFormatter(logging.Formatter):
 # Global logger instance
 _global_logger: Optional[RootingLogger] = None
 
-def get_logger(log_dir: str = "/data/local/tmp/android_root_logs",
+def get_logger(log_dir: Optional[str] = None,
                log_level: LogLevel = LogLevel.INFO,
                enable_console: bool = True,
                enable_audit: bool = True) -> RootingLogger:
@@ -551,7 +560,7 @@ def get_logger(log_dir: str = "/data/local/tmp/android_root_logs",
         
     return _global_logger
 
-def setup_logging(log_dir: str = "/data/local/tmp/android_root_logs",
+def setup_logging(log_dir: Optional[str] = None,
                   log_level: str = "INFO",
                   enable_console: bool = True,
                   enable_audit: bool = True) -> RootingLogger:
@@ -581,7 +590,10 @@ def main():
     parser = argparse.ArgumentParser(description='Android Rooting Logging System')
     parser.add_argument('action', choices=['test', 'analyze', 'cleanup', 'compress'],
                        help='Action to perform')
-    parser.add_argument('--log-dir', default='/data/local/tmp/android_root_logs',
+    # Default log directory - Termux compatible
+    default_log_dir = os.path.join(os.environ.get('HOME', tempfile.gettempdir()), '.android_root_logs')
+    
+    parser.add_argument('--log-dir', default=default_log_dir,
                        help='Log directory path')
     parser.add_argument('--days', type=int, default=7,
                        help='Days for cleanup/compress operations')
