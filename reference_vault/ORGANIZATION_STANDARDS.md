@@ -131,10 +131,32 @@ This module provides:
 - Feature 1 description
 - Feature 2 description  
 - Feature 3 description
+- BOTBRAKE integration for exploit opportunity detection
 
 Compatible with: Python 3.7+, Platform specifics
 """
 ```
+
+### Bot Framework Standards
+
+#### Error Handling Bots
+- **NO-STOP-ON-FAIL**: Continue through all failures except REDHAT CRITICAL conditions
+- **Endless Adaptation**: Mutation strategies across unlimited cycles
+- **REDHAT CRITICAL Detection**: Only stop for imminent bricking conditions (bootloader corruption, hardware failure)
+- **BOTBRAKE Integration**: Interlocking extension for exploit opportunity detection and penetration attempts
+
+#### BOTBRAKE Concept
+- **Definition**: Mini-wheel prefix path-divergence triggered when viable compliant exploit opportunities are detected
+- **Behavior**: If exploit opportunities uncovered, attempt at least one penetration action before continuing wheel structure
+- **Success Path**: If penetration succeeds, jump directly to root install flow bypassing remaining wheel sequence
+- **Failure Path**: If penetration fails, BOTBRAKE rolls back to exact mini-divergence location and continues existing wheel sequence
+- **Integration Points**: All major bot cycles include BOTBRAKE scan before continuing mutations
+
+#### Mutation Strategies
+- Strategy randomization with timeout adjustments
+- Method order shuffling for adaptation
+- Background monitoring after max cycles reached
+- BOTBRAKE exploit detection integrated into mutation cycles
 
 **Shell Scripts:**
 ```bash

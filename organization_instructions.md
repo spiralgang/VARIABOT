@@ -34,6 +34,15 @@ This document outlines the repository structure, file organization, and contribu
 ## Gap Handling
 Mark with // GAP: and PR traceability.
 
+## BOTBRAKE Integration
+**BOTBRAKE** is an interlocking extension concept for the wheel-penetration-mutations-adaptions loop:
+- **Purpose**: Detect and exploit viable compliant opportunities before continuing normal wheel sequence
+- **Trigger**: When unexpected exploit accessibility is discovered during bot cycles
+- **Behavior**: Creates mini-wheel prefix path-divergence for at least one penetration attempt
+- **Success**: Jump directly to root install flow, bypassing remaining wheel operations
+- **Failure**: Roll back to exact divergence point and continue existing mutations
+- **Global Integration**: Implemented across all bot frameworks and documented universally
+
 ## References
 
 - Internal: `/reference_vault/ORGANIZATION_STANDARDS.md` (detailed structure)

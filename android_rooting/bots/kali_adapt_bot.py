@@ -429,10 +429,106 @@ class KaliAdaptBot:
             
         return False
 
+    def _botbrake_exploit_detection(self) -> List[str]:
+        """BOTBRAKE: Detect viable exploit opportunities before continuing mutation wheel"""
+        opportunities = []
+        
+        try:
+            # Check for ADB shell access
+            result = subprocess.run(["adb", "devices"], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and "device" in result.stdout:
+                opportunities.append("ADB_SHELL_AVAILABLE")
+        except:
+            pass
+            
+        # Check for temporary root conditions
+        try:
+            result = subprocess.run(["su", "-c", "id"], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and "uid=0" in result.stdout:
+                opportunities.append("TEMPORARY_ROOT_ACTIVE")
+        except:
+            pass
+            
+        # Check for writable system access
+        try:
+            test_path = "/data/local/tmp/botbrake_test"
+            with open(test_path, 'w') as f:
+                f.write("test")
+            if os.path.exists(test_path):
+                opportunities.append("FILESYSTEM_WRITE_ACCESS")
+                os.remove(test_path)
+        except:
+            pass
+            
+        if opportunities:
+            self.logger.info(f"BOTBRAKE: Detected {len(opportunities)} exploit opportunities: {opportunities}")
+            
+        return opportunities
+
+    def _botbrake_penetration_attempt(self) -> bool:
+        """BOTBRAKE: Attempt penetration on detected opportunities"""
+        opportunities = self._botbrake_exploit_detection()
+        
+        if not opportunities:
+            return False
+            
+        self.logger.info("BOTBRAKE TRIGGERED: Attempting penetration before continuing wheel")
+        
+        for opportunity in opportunities:
+            try:
+                if opportunity == "TEMPORARY_ROOT_ACTIVE":
+                    # Leverage temporary root for permanent installation
+                    commands = [
+                        ["su", "-c", "mount -o remount,rw /system"],
+                        ["su", "-c", "setenforce 0"],
+                        ["su", "-c", "magisk --install"]
+                    ]
+                    
+                    for cmd in commands:
+                        result = subprocess.run(cmd, capture_output=True, timeout=10)
+                        if result.returncode == 0:
+                            self.logger.info(f"BOTBRAKE SUCCESS: Penetration successful with {opportunity}")
+                            return True
+                            
+                elif opportunity == "ADB_SHELL_AVAILABLE":
+                    # Attempt ADB privilege escalation
+                    result = subprocess.run(["adb", "shell", "su -c 'id'"], 
+                                          capture_output=True, text=True, timeout=10)
+                    if result.returncode == 0 and "uid=0" in result.stdout:
+                        subprocess.run(["adb", "shell", "su -c 'setenforce 0'"], timeout=5)
+                        self.logger.info(f"BOTBRAKE SUCCESS: Penetration successful with {opportunity}")
+                        return True
+                        
+                elif opportunity == "FILESYSTEM_WRITE_ACCESS":
+                    # Attempt filesystem-based privilege escalation
+                    exploit_script = "/data/local/tmp/botbrake_exploit"
+                    try:
+                        with open(exploit_script, 'w') as f:
+                            f.write("#!/system/bin/sh\nsu -c 'magisk --install'\n")
+                        os.chmod(exploit_script, 0o755)
+                        result = subprocess.run([exploit_script], timeout=10)
+                        if result.returncode == 0:
+                            self.logger.info(f"BOTBRAKE SUCCESS: Penetration successful with {opportunity}")
+                            return True
+                    except:
+                        pass
+                        
+            except Exception as e:
+                self.logger.debug(f"BOTBRAKE: Penetration attempt failed for {opportunity}: {e}")
+                
+        self.logger.info("BOTBRAKE: All penetration attempts failed, continuing with wheel sequence")
+        return False
+
     def _mutate_strategy(self):
         """Mutate rooting strategy for next cycle"""
         import random
         
+        # BOTBRAKE integration - check for exploit opportunities first
+        if self._botbrake_penetration_attempt():
+            self.logger.info("BOTBRAKE: Penetration successful, jumping to completion")
+            return
+        
+        # Continue with normal mutation if BOTBRAKE didn't succeed
         # Randomize method order
         random.shuffle(self.root_methods)
         

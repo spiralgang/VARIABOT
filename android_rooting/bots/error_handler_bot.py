@@ -483,9 +483,49 @@ class ErrorHandlerBot:
         self.logger.info("System error - continuing with workarounds...")
         # Continue regardless of system issues
         
+    def _botbrake_exploit_check(self) -> bool:
+        """BOTBRAKE: Check for viable exploit opportunities during error handling"""
+        self.logger.info("BOTBRAKE: Scanning for exploit opportunities during error handling")
+        
+        # Check for ADB access during failures
+        try:
+            result = subprocess.run(["adb", "devices"], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and "device" in result.stdout:
+                self.logger.info("BOTBRAKE: ADB access available during failure - attempting penetration")
+                # Attempt ADB-based recovery
+                recovery_result = subprocess.run(["adb", "shell", "su -c 'magisk --install'"], 
+                                               capture_output=True, timeout=15)
+                if recovery_result.returncode == 0:
+                    self.logger.info("BOTBRAKE SUCCESS: ADB penetration recovered from failure")
+                    return True
+        except:
+            pass
+            
+        # Check for temporary filesystem access
+        try:
+            test_file = "/data/local/tmp/botbrake_recovery_test"
+            with open(test_file, 'w') as f:
+                f.write("#!/system/bin/sh\nmagisk --install\n")
+            os.chmod(test_file, 0o755)
+            result = subprocess.run([test_file], timeout=10)
+            if result.returncode == 0:
+                self.logger.info("BOTBRAKE SUCCESS: Filesystem penetration recovered from failure")
+                os.remove(test_file)
+                return True
+        except:
+            pass
+            
+        return False
+
     def _handle_generic_error_no_stop(self, error: ErrorEvent):
         """Handle any other errors with continued operation"""
         self.logger.info(f"Generic error {error.category} - continuing with adaptations...")
+        
+        # BOTBRAKE integration - check for exploits during error handling
+        if self._botbrake_exploit_check():
+            self.logger.info("BOTBRAKE: Error converted to successful exploit opportunity")
+            return
+            
         # Continue regardless of any other errors
 
     def _handle_magisk_error(self, error: ErrorEvent) -> bool:

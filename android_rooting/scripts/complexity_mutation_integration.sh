@@ -223,9 +223,136 @@ validate_capability_coverage() {
     esac
 }
 
+# BOTBRAKE: Exploit opportunity detection and penetration attempt
+botbrake_exploit_scan() {
+    log_mutation "INFO" "BOTBRAKE" "Scanning for exploit opportunities" "cycle=$CURRENT_CYCLE"
+    
+    local exploit_opportunities=()
+    local botbrake_triggered=false
+    
+    # Detect viable compliant exploit opportunities
+    if command -v adb >/dev/null 2>&1; then
+        if adb devices 2>/dev/null | grep -q "device$"; then
+            exploit_opportunities+=("ADB_SHELL_ESCALATION")
+            log_mutation "INFO" "BOTBRAKE" "Exploit opportunity detected" "type=ADB_SHELL_ESCALATION"
+        fi
+    fi
+    
+    # Check for accessible system directories
+    if [[ -w "/system" ]] || [[ -w "/vendor" ]] || [[ -w "/data/local/tmp" ]]; then
+        exploit_opportunities+=("FILESYSTEM_WRITE_ACCESS")
+        log_mutation "INFO" "BOTBRAKE" "Exploit opportunity detected" "type=FILESYSTEM_WRITE_ACCESS"
+    fi
+    
+    # Check for temporary root conditions
+    if su -c "id" 2>/dev/null | grep -q "uid=0"; then
+        exploit_opportunities+=("TEMPORARY_ROOT_LEVERAGE")
+        log_mutation "INFO" "BOTBRAKE" "Exploit opportunity detected" "type=TEMPORARY_ROOT_LEVERAGE"
+    fi
+    
+    # Check for bootloader unlock opportunities
+    if command -v fastboot >/dev/null 2>&1; then
+        if fastboot devices 2>/dev/null | grep -q "fastboot"; then
+            exploit_opportunities+=("FASTBOOT_UNLOCK_AVAILABLE")
+            log_mutation "INFO" "BOTBRAKE" "Exploit opportunity detected" "type=FASTBOOT_UNLOCK_AVAILABLE"
+        fi
+    fi
+    
+    # BOTBRAKE mini-wheel divergence: attempt at least one penetration action
+    if [[ ${#exploit_opportunities[@]} -gt 0 ]]; then
+        botbrake_triggered=true
+        log_mutation "INFO" "BOTBRAKE" "TRIGGERED: Attempting penetration actions" "opportunities=${#exploit_opportunities[@]}"
+        
+        for opportunity in "${exploit_opportunities[@]}"; do
+            if botbrake_penetration_attempt "$opportunity"; then
+                log_mutation "SUCCESS" "BOTBRAKE" "Penetration successful - jumping to root install flow" "exploit=$opportunity"
+                # Jump directly to root install flow
+                execute_root_install_flow
+                return $?
+            fi
+        done
+        
+        log_mutation "INFO" "BOTBRAKE" "All penetration attempts failed - continuing wheel sequence" "attempts=${#exploit_opportunities[@]}"
+    fi
+    
+    return 0
+}
+
+# BOTBRAKE penetration attempt execution
+botbrake_penetration_attempt() {
+    local exploit_type="$1"
+    log_mutation "INFO" "BOTBRAKE_PENETRATION" "Attempting exploit" "type=$exploit_type"
+    
+    case "$exploit_type" in
+        "ADB_SHELL_ESCALATION")
+            # Attempt privilege escalation via ADB
+            if adb shell "su -c 'id'" 2>/dev/null | grep -q "uid=0"; then
+                adb shell "su -c 'mount -o remount,rw /system'"
+                adb shell "su -c 'setenforce 0'" 2>/dev/null
+                return 0
+            fi
+            ;;
+        "FILESYSTEM_WRITE_ACCESS")
+            # Leverage filesystem write access
+            local test_exploit="/data/local/tmp/botbrake_test"
+            if echo "#!/system/bin/sh\nid" > "$test_exploit" 2>/dev/null; then
+                chmod +x "$test_exploit" 2>/dev/null
+                if "$test_exploit" 2>/dev/null | grep -q "uid=0"; then
+                    return 0
+                fi
+            fi
+            ;;
+        "TEMPORARY_ROOT_LEVERAGE")
+            # Leverage existing temporary root
+            su -c "mount -o remount,rw /system" 2>/dev/null
+            su -c "setenforce 0" 2>/dev/null
+            su -c "magisk --install" 2>/dev/null
+            return $?
+            ;;
+        "FASTBOOT_UNLOCK_AVAILABLE")
+            # Attempt bootloader unlock
+            fastboot oem unlock 2>/dev/null
+            fastboot flashing unlock 2>/dev/null
+            return $?
+            ;;
+    esac
+    
+    return 1
+}
+
+# Root install flow (direct path after successful BOTBRAKE)
+execute_root_install_flow() {
+    log_mutation "INFO" "ROOT_INSTALL" "Executing direct root installation" "source=BOTBRAKE"
+    
+    # Attempt Magisk installation
+    if [[ -f "${ANDROID_ROOT_DIR}/core/magisk_manager.py" ]]; then
+        python3 "${ANDROID_ROOT_DIR}/core/magisk_manager.py" install 2>/dev/null
+        if [[ $? -eq 0 ]]; then
+            log_mutation "SUCCESS" "ROOT_INSTALL" "Magisk installation successful" ""
+            return 0
+        fi
+    fi
+    
+    # Attempt finalize_root script
+    if [[ -x "${SCRIPT_DIR}/finalize_root.sh" ]]; then
+        "${SCRIPT_DIR}/finalize_root.sh" 2>/dev/null
+        if [[ $? -eq 0 ]]; then
+            log_mutation "SUCCESS" "ROOT_INSTALL" "Root finalization successful" ""
+            return 0
+        fi
+    fi
+    
+    log_mutation "ERROR" "ROOT_INSTALL" "All root install methods failed" ""
+    return 1
+}
+
 # Mutation-based gap remediation
 remediate_gaps() {
     log_mutation "INFO" "REMEDIATION" "Starting gap remediation" "cycle=$CURRENT_CYCLE"
+    
+    # BOTBRAKE integration point - scan before remediation
+    botbrake_exploit_scan
+    local botbrake_result=$?
     
     if [[ ! -f "/tmp/integration_gaps.txt" ]]; then
         log_mutation "ERROR" "REMEDIATION" "No gaps file found" "expected=/tmp/integration_gaps.txt"
