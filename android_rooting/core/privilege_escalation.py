@@ -273,9 +273,9 @@ export PROOT_TMP_DIR=/data/local/tmp/proot_escape
 mkdir -p $PROOT_TMP_DIR
 
 # Method 1: Bind mount escape
-proot -0 -r / -b /dev -b /proc -b /sys -b /data \\
-    -w /data/local/tmp \\
-    -q qemu-aarch64 \\
+proot -0 -r / -b /dev -b /proc -b /sys -b /data \\\$
+    -w /data/local/tmp \\\$
+    -q qemu-aarch64 \\\$
     /bin/bash -c "
         # Test root access
         if [ \$(id -u) -eq 0 ]; then
@@ -787,15 +787,15 @@ chmod +x {rootfs_dir}/init
 
 # Boot VM with QEMU (if available)
 if command -v qemu-system-aarch64 >/dev/null 2>&1; then
-    qemu-system-aarch64 \\
-        -M virt \\
-        -cpu cortex-a57 \\
-        -m 256M \\
-        -nographic \\
-        -kernel /boot/vmlinuz \\
-        -initrd {rootfs_dir} \\
-        -append "console=ttyAMA0 init=/init" \\
-        -netdev user,id=net0 \\
+    qemu-system-aarch64 \\\$
+        -M virt \\\$
+        -cpu cortex-a57 \\\$
+        -m 256M \\\$
+        -nographic \\\$
+        -kernel /boot/vmlinuz \\\$
+        -initrd {rootfs_dir} \\\$
+        -append "console=ttyAMA0 init=/init" \\\$
+        -netdev user,id=net0 \\\$
         -device virtio-net,netdev=net0 &
     
     VM_PID=\$!
