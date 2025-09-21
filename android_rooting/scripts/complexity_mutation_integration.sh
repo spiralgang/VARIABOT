@@ -18,10 +18,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ANDROID_ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 VARIABOT_ROOT="$(dirname "$ANDROID_ROOT_DIR")"
 
-# Global configuration
-COMPLIANCE_LOG="/sdcard/compliance_integration.log"
-MUTATION_STATE="/sdcard/mutation_state.json"
-LOOP_STATE="/sdcard/loop_state.json"
+# Global configuration - Environment-aware paths
+if [[ -d "/sdcard" ]]; then
+    # Android/Termux environment
+    COMPLIANCE_LOG="/sdcard/compliance_integration.log"
+    MUTATION_STATE="/sdcard/mutation_state.json"
+    LOOP_STATE="/sdcard/loop_state.json"
+else
+    # Standard Linux environment
+    LOG_DIR="/tmp/android_root_logs"
+    mkdir -p "$LOG_DIR"
+    COMPLIANCE_LOG="${LOG_DIR}/compliance_integration.log"
+    MUTATION_STATE="${LOG_DIR}/mutation_state.json"
+    LOOP_STATE="${LOG_DIR}/loop_state.json"
+fi
 MAX_MUTATION_CYCLES=1000
 CURRENT_CYCLE=0
 
