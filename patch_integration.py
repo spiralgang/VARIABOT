@@ -13,16 +13,17 @@ from pathlib import Path
 from typing import List, Dict, Tuple
 import argparse
 
+
 class BotIntegrationPatcher:
     """Patches existing bot files for enhanced integration."""
-    
+
     def __init__(self, backup_enabled: bool = True):
         self.backup_enabled = backup_enabled
         self.project_root = Path(__file__).parent
         self.patch_log = []
-        
+
         # Integration imports to add
-        self.integration_imports = '''
+        self.integration_imports = """
 # VARIABOT Enhanced Integration System
 import sys
 from pathlib import Path
@@ -49,8 +50,8 @@ try:
     MOBILE_OPTIMIZED = True
 except ImportError:
     MOBILE_OPTIMIZED = False
-'''
-        
+"""
+
         # Enhanced client creation with fallbacks
         self.enhanced_client_creation = '''
 @st.cache_resource
@@ -152,7 +153,7 @@ def writehistory(text):
 '''
 
         # Mobile-optimized UI enhancements
-        self.mobile_ui_enhancements = '''
+        self.mobile_ui_enhancements = """
 # Mobile UI optimizations
 if INTEGRATION_AVAILABLE:
     capabilities = PlatformDetector.assess_capabilities()
@@ -207,15 +208,15 @@ else:
         page_title="VARIABOT",
         page_icon="🤖"
     )
-'''
+"""
 
     def backup_file(self, file_path: Path) -> bool:
         """Create backup of original file."""
         if not self.backup_enabled:
             return True
-            
+
         backup_path = file_path.with_suffix(f"{file_path.suffix}.backup")
-        
+
         try:
             shutil.copy2(file_path, backup_path)
             self.patch_log.append(f"✅ Backed up: {file_path} -> {backup_path}")
@@ -227,64 +228,70 @@ else:
     def patch_imports(self, content: str) -> str:
         """Add integration imports to the file."""
         # Find the last import statement
-        import_pattern = r'^(import .*|from .* import .*)$'
-        lines = content.split('\n')
+        import_pattern = r"^(import .*|from .* import .*)$"
+        lines = content.split("\n")
         last_import_line = -1
-        
+
         for i, line in enumerate(lines):
             if re.match(import_pattern, line.strip()):
                 last_import_line = i
-        
+
         if last_import_line >= 0:
             # Insert integration imports after last import
             lines.insert(last_import_line + 1, self.integration_imports)
         else:
             # Insert at the beginning if no imports found
             lines.insert(0, self.integration_imports)
-        
-        return '\n'.join(lines)
+
+        return "\n".join(lines)
 
     def patch_client_creation(self, content: str, model_name: str) -> str:
         """Replace client creation function with enhanced version."""
         # Pattern to match the create_client function
-        pattern = r'@st\.cache_resource\s*\ndef create_client\(\):.*?return client'
-        
-        enhanced_code = self.enhanced_client_creation.replace('{model_name}', model_name)
-        
+        pattern = r"@st\.cache_resource\s*\ndef create_client\(\):.*?return client"
+
+        enhanced_code = self.enhanced_client_creation.replace(
+            "{model_name}", model_name
+        )
+
         # Replace the function
         content = re.sub(pattern, enhanced_code, content, flags=re.DOTALL)
-        
+
         return content
 
     def patch_history_function(self, content: str) -> str:
         """Replace writehistory function with enhanced version."""
         # Pattern to match the writehistory function
-        pattern = r'def writehistory\(text\):.*?f\.close\(\)'
-        
+        pattern = r"def writehistory\(text\):.*?f\.close\(\)"
+
         # Add datetime import if not present
-        if 'from datetime import datetime' not in content:
-            content = 'from datetime import datetime\n' + content
-        
+        if "from datetime import datetime" not in content:
+            content = "from datetime import datetime\n" + content
+
         # Replace the function
-        content = re.sub(pattern, self.enhanced_history_function, content, flags=re.DOTALL)
-        
+        content = re.sub(
+            pattern, self.enhanced_history_function, content, flags=re.DOTALL
+        )
+
         return content
 
     def patch_ui_setup(self, content: str) -> str:
         """Add mobile UI optimizations."""
         # Find where UI setup begins (usually after imports and before st.image)
         ui_start_patterns = [
-            r'(st\.image\()',
-            r'(st\.markdown\(.*powered by)',
-            r'(st\.subheader\()',
-            r'(### START STREAMLIT UI)'
+            r"(st\.image\()",
+            r"(st\.markdown\(.*powered by)",
+            r"(st\.subheader\()",
+            r"(### START STREAMLIT UI)",
         ]
-        
+
         for pattern in ui_start_patterns:
             if re.search(pattern, content):
-                content = re.sub(pattern, self.mobile_ui_enhancements + r'\n\1', content, count=1)
+                content = re.sub(
+                    pattern, self.mobile_ui_enhancements + r"\n\1", content, count=1
+                )
                 break
-        
+
         return content
 
     def detect_model_name(self, content: str) -> str:
@@ -294,50 +301,50 @@ else:
             r'Client\("([^"]+)"',
             r"Client\('([^']+)'",
             r'hf_model.*=.*"([^"]+)"',
-            r"hf_model.*=.*'([^']+)'"
+            r"hf_model.*=.*'([^']+)'",
         ]
-        
+
         for pattern in patterns:
             match = re.search(pattern, content)
             if match:
                 return match.group(1)
-        
+
         return "unknown-model"
 
     def patch_bot_file(self, file_path: Path) -> bool:
         """Patch a single bot file with integration enhancements."""
         try:
             # Read original content
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 original_content = f.read()
-            
+
             # Create backup
             if not self.backup_file(file_path):
                 return False
-            
+
             # Apply patches
             content = original_content
-            
+
             # 1. Add integration imports
             content = self.patch_imports(content)
-            
+
             # 2. Detect model name and patch client creation
             model_name = self.detect_model_name(original_content)
             content = self.patch_client_creation(content, model_name)
-            
+
             # 3. Patch history function
             content = self.patch_history_function(content)
-            
+
             # 4. Add mobile UI optimizations
             content = self.patch_ui_setup(content)
-            
+
             # Write patched content
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
-            
+
             self.patch_log.append(f"✅ Patched: {file_path} (model: {model_name})")
             return True
-            
+
         except Exception as e:
             self.patch_log.append(f"❌ Failed to patch {file_path}: {e}")
             return False
@@ -346,25 +353,25 @@ else:
         """Patch all bot files in the repository."""
         bot_files = [
             "st-Qwen1.5-110B-Chat.py",
-            "st-Phi3Mini-128k-Chat.py", 
+            "st-Phi3Mini-128k-Chat.py",
             "st-Openelm-3B.py",
             "st-Qwen1.5-MoE-A2.7B-Chat.py",
             "st-codet5-small.py",
             "st-tinyllama-chat.py",
-            "Qwen110BChat.py"
+            "Qwen110BChat.py",
         ]
-        
+
         results = {}
-        
+
         for bot_file in bot_files:
             file_path = self.project_root / bot_file
-            
+
             if file_path.exists():
                 results[bot_file] = self.patch_bot_file(file_path)
             else:
                 self.patch_log.append(f"⚠️ File not found: {bot_file}")
                 results[bot_file] = False
-        
+
         return results
 
     def restore_backups(self) -> bool:
@@ -372,24 +379,24 @@ else:
         if not self.backup_enabled:
             print("❌ No backups available (backup was disabled)")
             return False
-        
+
         backup_files = list(self.project_root.glob("*.backup"))
-        
+
         if not backup_files:
             print("⚠️ No backup files found")
             return False
-        
+
         restored = 0
         for backup_file in backup_files:
-            original_file = backup_file.with_suffix('')
-            
+            original_file = backup_file.with_suffix("")
+
             try:
                 shutil.copy2(backup_file, original_file)
                 print(f"✅ Restored: {original_file}")
                 restored += 1
             except Exception as e:
                 print(f"❌ Failed to restore {original_file}: {e}")
-        
+
         print(f"📁 Restored {restored}/{len(backup_files)} files")
         return restored > 0
 
@@ -397,37 +404,44 @@ else:
         """Get summary of patching operations."""
         summary = "\n🔧 VARIABOT Integration Patching Summary\n"
         summary += "=" * 50 + "\n"
-        
+
         for log_entry in self.patch_log:
             summary += f"{log_entry}\n"
-        
+
         return summary
+
 
 def main():
     """Main command-line interface."""
     parser = argparse.ArgumentParser(description="VARIABOT Bot Integration Patcher")
-    parser.add_argument('--patch', action='store_true', 
-                       help='Patch all bot files with integration system')
-    parser.add_argument('--restore', action='store_true',
-                       help='Restore original files from backups')
-    parser.add_argument('--no-backup', action='store_true',
-                       help='Disable backup creation (dangerous!)')
-    parser.add_argument('--file', '-f', type=str,
-                       help='Patch specific file instead of all bots')
-    
+    parser.add_argument(
+        "--patch",
+        action="store_true",
+        help="Patch all bot files with integration system",
+    )
+    parser.add_argument(
+        "--restore", action="store_true", help="Restore original files from backups"
+    )
+    parser.add_argument(
+        "--no-backup", action="store_true", help="Disable backup creation (dangerous!)"
+    )
+    parser.add_argument(
+        "--file", "-f", type=str, help="Patch specific file instead of all bots"
+    )
+
     args = parser.parse_args()
-    
+
     if not (args.patch or args.restore):
         parser.print_help()
         return
-    
+
     patcher = BotIntegrationPatcher(backup_enabled=not args.no_backup)
-    
+
     if args.restore:
         print("🔄 Restoring original files from backups...")
         patcher.restore_backups()
         return
-    
+
     if args.patch:
         if args.file:
             # Patch single file
@@ -442,19 +456,20 @@ def main():
             # Patch all bots
             print("🔧 Patching all bot files with integration system...")
             results = patcher.patch_all_bots()
-            
+
             # Print results
             successful = sum(1 for success in results.values() if success)
             total = len(results)
-            
+
             print(f"\n📊 Results: {successful}/{total} files patched successfully")
-        
+
         # Print detailed log
         print(patcher.get_patch_summary())
-        
+
         if not args.no_backup:
             print(f"\n💾 Original files backed up with .backup extension")
             print(f"🔄 To restore: python {__file__} --restore")
+
 
 if __name__ == "__main__":
     main()

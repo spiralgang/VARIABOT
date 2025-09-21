@@ -16,18 +16,18 @@ from .utils.termux_compat import TermuxEnvironment, get_termux_compatibility_inf
 from .utils.logging_system import get_logger, setup_logging, RootingLogger
 
 __all__ = [
-    'RootDetector',
-    'RootStatus', 
-    'MagiskManager',
-    'MagiskStatus',
-    'AndroidPentestFramework',
-    'KaliIntegration',
-    'ErrorHandlerBot',
-    'ErrorEvent',
-    'ErrorSeverity',
-    'TermuxEnvironment',
-    'get_termux_compatibility_info',
-    'get_logger',
-    'setup_logging',
-    'RootingLogger'
+    "RootDetector",
+    "RootStatus",
+    "MagiskManager",
+    "MagiskStatus",
+    "AndroidPentestFramework",
+    "KaliIntegration",
+    "ErrorHandlerBot",
+    "ErrorEvent",
+    "ErrorSeverity",
+    "TermuxEnvironment",
+    "get_termux_compatibility_info",
+    "get_logger",
+    "setup_logging",
+    "RootingLogger",
 ]

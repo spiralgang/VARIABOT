@@ -1,0 +1,597 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Android Root Command-Line Interface
+# Production-grade Android rooting orchestration tool
+#
+# This script provides:
+# - Unified interface for all rooting operations
+# - Intelligent method selection and orchestration
+# - Real-time progress monitoring and adaptation
+# - Integration with Kali Linux and error handling bots
+# - Comprehensive logging and status reporting
+#
+# Compatible with: Android 10+, Termux, Kali Linux environments
+
+# Script configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ANDROID_ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+VARIABOT_ROOT="$(dirname "$ANDROID_ROOT_DIR")"
+
+# Environment-aware configuration
+if [[ -n "${PREFIX:-}" && -n "${HOME:-}" ]]; then
+    # Termux environment
+    LOG_DIR="${HOME}/.android_root_logs"
+    CONFIG_DIR="${HOME}/.android_root_config"
+    TMP_DIR="${PREFIX}/tmp"
+else
+    # Standard Linux environment
+    LOG_DIR="/tmp/android_root_logs"
+    CONFIG_DIR="/tmp/android_root_config"
+    TMP_DIR="/tmp"
+fi
+
+mkdir -p "$LOG_DIR" "$CONFIG_DIR" "$TMP_DIR"
+
+# Configuration files
+CONFIG_FILE="${CONFIG_DIR}/android-root.conf"
+STATUS_FILE="${CONFIG_DIR}/android-root.status"
+LOG_FILE="${LOG_DIR}/android-root-$(date +%Y%m%d_%H%M%S).log"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+NC='\033[0m'
+
+# Logging functions
+log() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+    echo "${timestamp} ${level} android-root: ${message}" >> "$LOG_FILE"
+}
+
+log_info() {
+    log "INFO" "$1"
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    log "WARN" "$1"
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    log "ERROR" "$1"
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+log_debug() {
+    log "DEBUG" "$1"
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        echo -e "${BLUE}[DEBUG]${NC} $1"
+    fi
+}
+
+# Configuration management
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        source "$CONFIG_FILE"
+    else
+        # Default configuration
+        cat > "$CONFIG_FILE" << 'EOF'
+# Android Root Configuration
+DEFAULT_METHOD="auto"
+MAX_ATTEMPTS=100
+ENABLE_KALI_INTEGRATION=true
+ENABLE_ERROR_BOT=true
+ENABLE_LIVE_MONITORING=true
+GITHUB_INTEGRATION=false
+AUTO_RECOVERY=true
+VERBOSE_OUTPUT=false
+EOF
+        log_info "Created default configuration: $CONFIG_FILE"
+    fi
+}
+
+save_status() {
+    local status="$1"
+    local details="$2"
+    cat > "$STATUS_FILE" << EOF
+{
+    "status": "$status",
+    "details": "$details",
+    "timestamp": "$(date -Iseconds)",
+    "pid": $$,
+    "log_file": "$LOG_FILE"
+}
+EOF
+}
+
+# Root method detection and orchestration
+detect_available_methods() {
+    local methods=()
+    
+    # Check for Magisk
+    if command -v magisk >/dev/null 2>&1; then
+        methods+=("magisk")
+    fi
+    
+    # Check for traditional su
+    if [[ -f "/system/bin/su" ]] || [[ -f "/system/xbin/su" ]]; then
+        methods+=("su")
+    fi
+    
+    # Check for Kali Linux integration
+    if command -v proot-distro >/dev/null 2>&1 && proot-distro list | grep -q kali; then
+        methods+=("kali")
+    fi
+    
+    # Check for custom scripts
+    if [[ -x "${SCRIPT_DIR}/finalize_root.sh" ]]; then
+        methods+=("finalize")
+    fi
+    
+    # Check for adaptive rooting
+    if [[ -f "${ANDROID_ROOT_DIR}/core/root_adaptor.py" ]]; then
+        methods+=("adaptive")
+    fi
+    
+    printf '%s\n' "${methods[@]}"
+}
+
+select_optimal_method() {
+    local methods=($(detect_available_methods))
+    local current_status=$("${SCRIPT_DIR}/root-detect" --json | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['root_detection']['overall_status'])" 2>/dev/null || echo "unknown")
+    
+    log_debug "Available methods: ${methods[*]}"
+    log_debug "Current root status: $current_status"
+    
+    # Method selection logic based on current status
+    case "$current_status" in
+        "full")
+            echo "none"  # Already rooted
+            return 0
+            ;;
+        "partial")
+            # Try to complete partial root
+            if printf '%s\n' "${methods[@]}" | grep -q "magisk"; then
+                echo "magisk"
+            elif printf '%s\n' "${methods[@]}" | grep -q "finalize"; then
+                echo "finalize"
+            else
+                echo "adaptive"
+            fi
+            ;;
+        *)
+            # Full rooting needed
+            if printf '%s\n' "${methods[@]}" | grep -q "adaptive"; then
+                echo "adaptive"
+            elif printf '%s\n' "${methods[@]}" | grep -q "kali"; then
+                echo "kali"
+            elif printf '%s\n' "${methods[@]}" | grep -q "magisk"; then
+                echo "magisk"
+            else
+                echo "finalize"
+            fi
+            ;;
+    esac
+}
+
+# Individual rooting methods
+execute_magisk_method() {
+    log_info "Executing Magisk rooting method..."
+    
+    if ! command -v magisk >/dev/null 2>&1; then
+        log_error "Magisk not available"
+        return 1
+    fi
+    
+    # Run Magisk installation
+    if magisk --install; then
+        log_info "Magisk installation completed"
+        return 0
+    else
+        log_error "Magisk installation failed"
+        return 1
+    fi
+}
+
+execute_kali_method() {
+    log_info "Executing Kali Linux rooting method..."
+    
+    if ! command -v proot-distro >/dev/null 2>&1; then
+        log_error "Kali Linux integration not available"
+        return 1
+    fi
+    
+    # Start Kali adaptation bot
+    if [[ -f "${ANDROID_ROOT_DIR}/bots/kali_adapt_bot.py" ]]; then
+        python3 "${ANDROID_ROOT_DIR}/bots/kali_adapt_bot.py" --max-attempts 50
+        return $?
+    else
+        log_error "Kali adaptation bot not found"
+        return 1
+    fi
+}
+
+execute_finalize_method() {
+    log_info "Executing finalize rooting method..."
+    
+    local finalize_script="${SCRIPT_DIR}/finalize_root.sh"
+    if [[ -x "$finalize_script" ]]; then
+        "$finalize_script"
+        return $?
+    else
+        log_error "Finalize root script not found or not executable"
+        return 1
+    fi
+}
+
+execute_adaptive_method() {
+    log_info "Executing adaptive rooting method..."
+    
+    local adaptive_script="${ANDROID_ROOT_DIR}/core/root_adaptor.py"
+    if [[ -f "$adaptive_script" ]]; then
+        python3 "$adaptive_script" --max-cycles "$MAX_ATTEMPTS"
+        return $?
+    else
+        log_error "Adaptive rooting script not found"
+        return 1
+    fi
+}
+
+# Main rooting orchestration
+perform_rooting() {
+    local method="${1:-auto}"
+    local max_attempts="${2:-$MAX_ATTEMPTS}"
+    
+    log_info "Starting Android rooting process..."
+    log_info "Method: $method, Max attempts: $max_attempts"
+    
+    save_status "starting" "Rooting process initiated"
+    
+    # Start error bot if enabled
+    if [[ "$ENABLE_ERROR_BOT" == "true" ]]; then
+        start_error_bot
+    fi
+    
+    # Method selection
+    if [[ "$method" == "auto" ]]; then
+        method=$(select_optimal_method)
+        log_info "Auto-selected method: $method"
+    fi
+    
+    # Check if already rooted
+    if [[ "$method" == "none" ]]; then
+        log_info "Device is already fully rooted"
+        save_status "completed" "Device already rooted"
+        return 0
+    fi
+    
+    # Execute selected method
+    local attempt=1
+    local success=false
+    
+    while [[ $attempt -le $max_attempts ]] && [[ "$success" == false ]]; do
+        log_info "Rooting attempt $attempt/$max_attempts using method: $method"
+        save_status "running" "Attempt $attempt/$max_attempts - Method: $method"
+        
+        case "$method" in
+            "magisk")
+                if execute_magisk_method; then
+                    success=true
+                fi
+                ;;
+            "kali")
+                if execute_kali_method; then
+                    success=true
+                fi
+                ;;
+            "finalize")
+                if execute_finalize_method; then
+                    success=true
+                fi
+                ;;
+            "adaptive")
+                if execute_adaptive_method; then
+                    success=true
+                fi
+                ;;
+            *)
+                log_error "Unknown rooting method: $method"
+                break
+                ;;
+        esac
+        
+        # Check root status after attempt
+        local root_status=$("${SCRIPT_DIR}/root-detect" --json | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['root_detection']['overall_status'])" 2>/dev/null || echo "unknown")
+        
+        if [[ "$root_status" == "full" ]]; then
+            success=true
+            log_info "Full root achieved!"
+            break
+        elif [[ "$root_status" == "partial" ]]; then
+            log_info "Partial root detected, continuing..."
+        fi
+        
+        # Adaptive method switching
+        if [[ $((attempt % 10)) -eq 0 ]] && [[ "$AUTO_RECOVERY" == "true" ]]; then
+            log_info "Switching to alternative method for recovery..."
+            case "$method" in
+                "magisk") method="adaptive" ;;
+                "adaptive") method="kali" ;;
+                "kali") method="finalize" ;;
+                "finalize") method="adaptive" ;;
+            esac
+            log_info "Switched to method: $method"
+        fi
+        
+        attempt=$((attempt + 1))
+        
+        # Brief pause between attempts
+        sleep 3
+    done
+    
+    # Final status update
+    if [[ "$success" == true ]]; then
+        log_info "Rooting process completed successfully!"
+        save_status "completed" "Root achieved after $attempt attempts"
+        show_success_summary
+        return 0
+    else
+        log_error "Rooting process failed after $max_attempts attempts"
+        save_status "failed" "Failed after $max_attempts attempts"
+        show_failure_summary
+        return 1
+    fi
+}
+
+# Support functions
+start_error_bot() {
+    log_info "Starting error handling bot..."
+    
+    local error_bot="${SCRIPT_DIR}/error-bot"
+    if [[ -x "$error_bot" ]]; then
+        "$error_bot" --daemon
+        sleep 2  # Give daemon time to start
+        log_info "Error bot started"
+    else
+        log_warn "Error bot not available"
+    fi
+}
+
+stop_error_bot() {
+    log_info "Stopping error handling bot..."
+    
+    local error_bot="${SCRIPT_DIR}/error-bot"
+    if [[ -x "$error_bot" ]]; then
+        "$error_bot" --stop
+        log_info "Error bot stopped"
+    fi
+}
+
+show_status() {
+    echo -e "${CYAN}🔍 Android Root Status${NC}"
+    echo "================================"
+    
+    # Show current root detection
+    "${SCRIPT_DIR}/root-detect"
+    
+    echo
+    echo -e "${BLUE}📊 System Information${NC}"
+    echo "--------------------------------"
+    
+    # Show available methods
+    local methods=($(detect_available_methods))
+    echo "Available Methods: ${methods[*]:-none}"
+    
+    # Show daemon status
+    if [[ -f "/tmp/error-bot.pid" ]]; then
+        echo -e "Error Bot: ${GREEN}Running${NC}"
+    else
+        echo -e "Error Bot: ${RED}Stopped${NC}"
+    fi
+    
+    # Show last operation status
+    if [[ -f "$STATUS_FILE" ]]; then
+        echo
+        echo -e "${BLUE}📋 Last Operation${NC}"
+        echo "--------------------------------"
+        cat "$STATUS_FILE" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    print(f\"Status: {data['status']}\")
+    print(f\"Details: {data['details']}\")
+    print(f\"Timestamp: {data['timestamp']}\")
+except:
+    print('Status file corrupted')
+"
+    fi
+}
+
+show_success_summary() {
+    echo
+    echo -e "${GREEN}🎉 ROOTING SUCCESS!${NC}"
+    echo "================================"
+    echo
+    
+    # Show final root verification
+    "${SCRIPT_DIR}/root-detect" --capabilities
+    
+    echo
+    echo -e "${GREEN}✅ Root access has been successfully established!${NC}"
+    echo -e "${GREEN}✅ Device is now fully functional with administrative privileges${NC}"
+    echo
+    echo "Log file: $LOG_FILE"
+}
+
+show_failure_summary() {
+    echo
+    echo -e "${RED}❌ ROOTING FAILED${NC}"
+    echo "================================"
+    echo
+    echo -e "${YELLOW}📋 Recommendations:${NC}"
+    echo "• Check device compatibility and bootloader status"
+    echo "• Ensure sufficient storage space and battery level"
+    echo "• Review log file for detailed error information"
+    echo "• Try manual rooting methods if automated process fails"
+    echo "• Consult device-specific rooting guides"
+    echo
+    echo "Log file: $LOG_FILE"
+    echo "Error log: /sdcard/error-bot-errors.log"
+}
+
+# Command line interface
+show_help() {
+    cat << EOF
+Android Root Command-Line Interface
+
+Usage: $0 [COMMAND] [OPTIONS]
+
+Commands:
+    root [METHOD]           Start rooting process
+    status                  Show current root and system status
+    detect                  Run root detection only
+    stop                    Stop running rooting processes
+    logs                    Show recent log entries
+    config                  Show/edit configuration
+    help                    Show this help message
+
+Methods:
+    auto                    Automatically select best method (default)
+    magisk                  Use Magisk-based rooting
+    kali                    Use Kali Linux exploitation
+    finalize                Use finalize root script
+    adaptive                Use adaptive rooting system
+
+Options:
+    --max-attempts N        Maximum rooting attempts (default: 100)
+    --enable-error-bot      Enable error handling daemon
+    --disable-error-bot     Disable error handling daemon
+    --verbose               Enable verbose output
+    --debug                 Enable debug output
+
+Examples:
+    $0 root                 # Auto-select method and start rooting
+    $0 root adaptive        # Use adaptive rooting method
+    $0 status               # Show current root status
+    $0 detect --json        # JSON root detection output
+    $0 config --edit        # Edit configuration file
+
+Configuration file: $CONFIG_FILE
+Log directory: $LOG_DIR
+
+For detailed documentation, see: ${ANDROID_ROOT_DIR}/docs/ANDROID_ROOTING_GUIDE.md
+EOF
+}
+
+# Main execution
+main() {
+    # Load configuration
+    load_config
+    source "$CONFIG_FILE"
+    
+    # Parse command line arguments
+    local command="${1:-help}"
+    shift || true
+    
+    case "$command" in
+        "root")
+            local method="${1:-auto}"
+            shift || true
+            
+            # Parse options
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --max-attempts)
+                        MAX_ATTEMPTS="$2"
+                        shift 2
+                        ;;
+                    --enable-error-bot)
+                        ENABLE_ERROR_BOT=true
+                        shift
+                        ;;
+                    --disable-error-bot)
+                        ENABLE_ERROR_BOT=false
+                        shift
+                        ;;
+                    --verbose)
+                        VERBOSE_OUTPUT=true
+                        shift
+                        ;;
+                    --debug)
+                        DEBUG=true
+                        shift
+                        ;;
+                    *)
+                        log_error "Unknown option: $1"
+                        exit 1
+                        ;;
+                esac
+            done
+            
+            perform_rooting "$method" "$MAX_ATTEMPTS"
+            ;;
+            
+        "status")
+            show_status
+            ;;
+            
+        "detect")
+            "${SCRIPT_DIR}/root-detect" "$@"
+            ;;
+            
+        "stop")
+            log_info "Stopping rooting processes..."
+            stop_error_bot
+            # Kill any running rooting processes
+            pkill -f "android.root\|finalize_root\|kali_adapt" || true
+            save_status "stopped" "Manually stopped by user"
+            ;;
+            
+        "logs")
+            if [[ -f "$LOG_FILE" ]]; then
+                tail -n 50 "$LOG_FILE"
+            else
+                echo "No recent log file found"
+            fi
+            ;;
+            
+        "config")
+            if [[ "$1" == "--edit" ]]; then
+                "${EDITOR:-nano}" "$CONFIG_FILE"
+            else
+                echo "Configuration file: $CONFIG_FILE"
+                echo "Contents:"
+                cat "$CONFIG_FILE"
+            fi
+            ;;
+            
+        "help"|"--help"|"-h")
+            show_help
+            ;;
+            
+        *)
+            echo "Unknown command: $command"
+            echo "Use '$0 help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
+
+# References:
+# - Internal: /reference_vault/linux_kali_android.md#android-rooting-guide
+# - Internal: /reference_vault/PRODUCTION_GRADE_STANDARDS.md#command-line-interfaces
+# - External: Android Rooting Methods — https://www.xda-developers.com/root/
+# - External: Magisk Documentation — https://topjohnwu.github.io/Magisk/

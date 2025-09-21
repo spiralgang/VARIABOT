@@ -1,0 +1,381 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Root Detection Command-Line Tool
+# Production-grade root detection with comprehensive capability assessment
+#
+# This script provides:
+# - Multi-method root detection
+# - Privilege level assessment  
+# - Magisk status verification
+# - System modification detection
+# - Capability reporting for rooting tools
+#
+# Compatible with: Android 10+, Termux, Kali Linux, Standard Linux
+
+# Script configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ANDROID_ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Root detection methods
+detect_su_root() {
+    if command -v su >/dev/null 2>&1; then
+        if su -c "id" 2>/dev/null | grep -q "uid=0"; then
+            echo "full_su"
+            return 0
+        else
+            echo "partial_su"
+            return 1
+        fi
+    fi
+    echo "no_su"
+    return 1
+}
+
+detect_magisk_root() {
+    if command -v magisk >/dev/null 2>&1; then
+        local version=$(magisk -c 2>/dev/null || echo "unknown")
+        if magisk -c info 2>/dev/null; then
+            echo "magisk_active:$version"
+            return 0
+        else
+            echo "magisk_partial:$version"
+            return 1
+        fi
+    fi
+    echo "no_magisk"
+    return 1
+}
+
+detect_system_modifications() {
+    local modifications=()
+    
+    # Check for custom recovery
+    if [[ -f "/cache/recovery/log" ]] || [[ -f "/tmp/recovery.log" ]]; then
+        modifications+=("custom_recovery")
+    fi
+    
+    # Check for unlocked bootloader
+    if [[ -f "/sys/class/android_usb/android0/f_rndis/ethaddr" ]]; then
+        modifications+=("bootloader_unlocked")
+    fi
+    
+    # Check for system partition modifications
+    if mount | grep -q "/system.*rw"; then
+        modifications+=("system_rw")
+    fi
+    
+    # Check for SELinux status
+    if [[ -f "/sys/fs/selinux/enforce" ]]; then
+        local selinux_status=$(cat /sys/fs/selinux/enforce 2>/dev/null)
+        if [[ "$selinux_status" == "0" ]]; then
+            modifications+=("selinux_permissive")
+        fi
+    fi
+    
+    # Check for Xposed framework
+    if [[ -d "/data/data/de.robv.android.xposed.installer" ]]; then
+        modifications+=("xposed_framework")
+    fi
+    
+    printf '%s\n' "${modifications[@]}"
+}
+
+detect_rooting_tools() {
+    local tools=()
+    
+    # Check for common rooting tools
+    local rooting_binaries=(
+        "su"
+        "busybox"
+        "magisk"
+        "supersu"
+        "kingroot"
+        "towelroot"
+    )
+    
+    for binary in "${rooting_binaries[@]}"; do
+        if command -v "$binary" >/dev/null 2>&1; then
+            tools+=("$binary")
+        fi
+    done
+    
+    # Check for rooting apps
+    local rooting_apps=(
+        "/data/data/com.topjohnwu.magisk"
+        "/data/data/eu.chainfire.supersu"
+        "/data/data/com.kingroot.kinguser"
+        "/data/data/com.koushikdutta.superuser"
+    )
+    
+    for app in "${rooting_apps[@]}"; do
+        if [[ -d "$app" ]]; then
+            local app_name=$(basename "$app" | sed 's/.*\.//')
+            tools+=("app_$app_name")
+        fi
+    done
+    
+    printf '%s\n' "${tools[@]}"
+}
+
+analyze_root_capabilities() {
+    local capabilities=()
+    
+    # Test file system write access
+    local test_locations=(
+        "/system"
+        "/data"
+        "/cache"
+        "/sdcard"
+    )
+    
+    for location in "${test_locations[@]}"; do
+        if [[ -w "$location" ]]; then
+            capabilities+=("write_$(basename "$location")")
+        fi
+    done
+    
+    # Test command execution capabilities
+    local test_commands=(
+        "mount"
+        "umount"
+        "chmod"
+        "chown"
+        "setenforce"
+    )
+    
+    for cmd in "${test_commands[@]}"; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            capabilities+=("cmd_$cmd")
+        fi
+    done
+    
+    printf '%s\n' "${capabilities[@]}"
+}
+
+generate_root_report() {
+    local format="${1:-human}"
+    local show_capabilities="${2:-false}"
+    
+    # Gather detection results
+    local su_status=$(detect_su_root)
+    local magisk_status=$(detect_magisk_root)
+    local modifications=($(detect_system_modifications))
+    local tools=($(detect_rooting_tools))
+    local capabilities=($(analyze_root_capabilities))
+    
+    # Determine overall root status
+    local root_level="none"
+    if [[ "$su_status" == "full_su" ]]; then
+        root_level="full"
+    elif [[ "$magisk_status" == magisk_active:* ]] || [[ "$su_status" == "partial_su" ]]; then
+        root_level="partial"
+    elif [[ ${#tools[@]} -gt 0 ]] || [[ ${#modifications[@]} -gt 0 ]]; then
+        root_level="indicators"
+    fi
+    
+    if [[ "$format" == "json" ]]; then
+        # JSON output
+        cat << EOF
+{
+    "root_detection": {
+        "overall_status": "$root_level",
+        "su_status": "$su_status",
+        "magisk_status": "$magisk_status",
+        "confidence": "$(calculate_confidence)"
+    },
+    "system_modifications": [$(printf '"%s",' "${modifications[@]}" | sed 's/,$//')],
+    "rooting_tools": [$(printf '"%s",' "${tools[@]}" | sed 's/,$//')],
+    "capabilities": [$(printf '"%s",' "${capabilities[@]}" | sed 's/,$//')],
+    "detection_metadata": {
+        "timestamp": "$(date -Iseconds)",
+        "hostname": "$(hostname 2>/dev/null || echo 'unknown')",
+        "android_version": "$(getprop ro.build.version.release 2>/dev/null || echo 'unknown')",
+        "architecture": "$(uname -m)",
+        "kernel": "$(uname -r)"
+    }
+}
+EOF
+    else
+        # Human-readable output
+        echo -e "${CYAN}🔍 Android Root Detection Report${NC}"
+        echo "========================================"
+        echo
+        
+        # Overall status with color coding
+        case "$root_level" in
+            "full")
+                echo -e "Root Status: ${GREEN}FULL ROOT DETECTED${NC}"
+                echo -e "Confidence: ${GREEN}HIGH${NC}"
+                ;;
+            "partial")
+                echo -e "Root Status: ${YELLOW}PARTIAL ROOT DETECTED${NC}"
+                echo -e "Confidence: ${YELLOW}MEDIUM${NC}"
+                ;;
+            "indicators")
+                echo -e "Root Status: ${YELLOW}ROOT INDICATORS FOUND${NC}"
+                echo -e "Confidence: ${YELLOW}LOW-MEDIUM${NC}"
+                ;;
+            *)
+                echo -e "Root Status: ${RED}NO ROOT DETECTED${NC}"
+                echo -e "Confidence: ${RED}HIGH${NC}"
+                ;;
+        esac
+        
+        echo
+        echo "Detailed Analysis:"
+        echo "- SU Access: $su_status"
+        echo "- Magisk Status: $magisk_status"
+        
+        if [[ ${#modifications[@]} -gt 0 ]]; then
+            echo
+            echo "System Modifications:"
+            for mod in "${modifications[@]}"; do
+                echo "  ✓ $mod"
+            done
+        fi
+        
+        if [[ ${#tools[@]} -gt 0 ]]; then
+            echo
+            echo "Rooting Tools Found:"
+            for tool in "${tools[@]}"; do
+                echo "  ✓ $tool"
+            done
+        fi
+        
+        if [[ "$show_capabilities" == "true" && ${#capabilities[@]} -gt 0 ]]; then
+            echo
+            echo "Root Capabilities:"
+            for cap in "${capabilities[@]}"; do
+                echo "  ✓ $cap"
+            done
+        fi
+        
+        echo
+        echo "Device Information:"
+        echo "- Android Version: $(getprop ro.build.version.release 2>/dev/null || echo 'unknown')"
+        echo "- Architecture: $(uname -m)"
+        echo "- Kernel: $(uname -r)"
+        echo "- Hostname: $(hostname 2>/dev/null || echo 'unknown')"
+        echo
+        echo "Timestamp: $(date)"
+    fi
+}
+
+calculate_confidence() {
+    # Simple confidence calculation based on detection results
+    local score=0
+    
+    local su_status=$(detect_su_root)
+    local magisk_status=$(detect_magisk_root)
+    
+    case "$su_status" in
+        "full_su") score=$((score + 40)) ;;
+        "partial_su") score=$((score + 20)) ;;
+    esac
+    
+    case "$magisk_status" in
+        magisk_active:*) score=$((score + 30)) ;;
+        magisk_partial:*) score=$((score + 15)) ;;
+    esac
+    
+    local modifications=($(detect_system_modifications))
+    score=$((score + ${#modifications[@]} * 5))
+    
+    local tools=($(detect_rooting_tools))
+    score=$((score + ${#tools[@]} * 3))
+    
+    if [[ $score -ge 70 ]]; then
+        echo "high"
+    elif [[ $score -ge 40 ]]; then
+        echo "medium"
+    elif [[ $score -ge 20 ]]; then
+        echo "low"
+    else
+        echo "very_low"
+    fi
+}
+
+# Main execution
+main() {
+    local output_format="human"
+    local show_capabilities=false
+    local continuous_mode=false
+    local interval=5
+    
+    # Parse command line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                output_format="json"
+                shift
+                ;;
+            --capabilities)
+                show_capabilities=true
+                shift
+                ;;
+            --continuous)
+                continuous_mode=true
+                shift
+                ;;
+            --interval)
+                interval="$2"
+                shift 2
+                ;;
+            --help|-h)
+                cat << EOF
+Root Detection Tool
+
+Usage: $0 [OPTIONS]
+
+Options:
+    --json              Output in JSON format
+    --capabilities      Show detailed capability analysis
+    --continuous        Run in continuous monitoring mode
+    --interval SECONDS  Interval for continuous mode (default: 5)
+    --help, -h          Show this help message
+
+Examples:
+    $0                      # Basic root detection
+    $0 --json              # JSON output for scripts
+    $0 --capabilities      # Include capability analysis
+    $0 --continuous        # Monitor root status continuously
+EOF
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    if [[ "$continuous_mode" == true ]]; then
+        echo "Starting continuous root monitoring (interval: ${interval}s, press Ctrl+C to stop)..."
+        while true; do
+            clear
+            generate_root_report "$output_format" "$show_capabilities"
+            sleep "$interval"
+        done
+    else
+        generate_root_report "$output_format" "$show_capabilities"
+    fi
+}
+
+# Script entry point
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
+
+# References:
+# - Internal: /reference_vault/linux_kali_android.md#environment-detection
+# - Internal: /reference_vault/PRODUCTION_GRADE_STANDARDS.md#modularity
+# - External: Android Security Model — https://source.android.com/security/overview/

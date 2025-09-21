@@ -2,6 +2,7 @@ import streamlit as st
 import time
 import sys
 from gradio_client import Client
+
 # Internal usage
 import os
 from time import sleep
@@ -15,40 +16,44 @@ if "messages" not in st.session_state:
 
 
 @st.cache_resource
-def create_client():   
-    yourHFtoken = "hf_xxxxxxxxxxxxxxxxxxxxxxxx" #here your HF token
-    print(f'loading the API gradio client for {st.session_state.hf_model}')
+def create_client():
+    yourHFtoken = "hf_xxxxxxxxxxxxxxxxxxxxxxxx"  # here your HF token
+    print(f"loading the API gradio client for {st.session_state.hf_model}")
     client = Client("Norod78/OpenELM_3B_Demo", hf_token=yourHFtoken)
     return client
 
+
 # FUNCTION TO LOG ALL CHAT MESSAGES INTO chathistory.txt
 def writehistory(text):
-    with open('chathistoryOpenELM3B.txt', 'a', encoding='utf-8') as f:
+    with open("chathistoryOpenELM3B.txt", "a", encoding="utf-8") as f:
         f.write(text)
-        f.write('\n')
+        f.write("\n")
     f.close()
 
-#AVATARS
-av_us = '🧑‍💻'  # './man.png'  #"🦖"  #A single emoji, e.g. "🧑‍💻", "🤖", "🦖". Shortcodes are not supported.
-av_ass = "🤖"   #'./robot.png'
+
+# AVATARS
+av_us = "🧑‍💻"  # './man.png'  #"🦖"  #A single emoji, e.g. "🧑‍💻", "🤖", "🦖". Shortcodes are not supported.
+av_ass = "🤖"  #'./robot.png'
 # Set a default model
 
 
 ### START STREAMLIT UI
-st.image('https://github.com/fabiomatricardi/ChatBOTMastery/raw/main/OpenELMlogo.png', )
-st.markdown("### *powered by Streamlit & Gradio_client*", unsafe_allow_html=True )
-#st.subheader(f"Free ChatBot using {st.session_state.hf_model}")
-st.markdown('---')
+st.image(
+    "https://github.com/fabiomatricardi/ChatBOTMastery/raw/main/OpenELMlogo.png",
+)
+st.markdown("### *powered by Streamlit & Gradio_client*", unsafe_allow_html=True)
+# st.subheader(f"Free ChatBot using {st.session_state.hf_model}")
+st.markdown("---")
 
 client = create_client()
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
     if message["role"] == "user":
-        with st.chat_message(message["role"],avatar=av_us):
+        with st.chat_message(message["role"], avatar=av_us):
             st.markdown(message["content"])
     else:
-        with st.chat_message(message["role"],avatar=av_ass):
+        with st.chat_message(message["role"], avatar=av_ass):
             st.markdown(message["content"])
 # Accept user input
 if myprompt := st.chat_input("What is an AI model?"):
@@ -63,20 +68,22 @@ if myprompt := st.chat_input("What is an AI model?"):
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         full_response = ""
-        res  =  client.submit(
-                message=myprompt,
-                request=800,  #max new tokens
-                param_3=0.6,  #temperature
-                param_4=0.9,  # top-p
-                param_5=50,   #top-k
-                param_6=1.4,  #repetition penalty
-                api_name="/chat"
-                )
-        
+        res = client.submit(
+            message=myprompt,
+            request=800,  # max new tokens
+            param_3=0.6,  # temperature
+            param_4=0.9,  # top-p
+            param_5=50,  # top-k
+            param_6=1.4,  # repetition penalty
+            api_name="/chat",
+        )
+
         for r in res:
-            full_response=r
-            message_placeholder.markdown(r+ "▌")
+            full_response = r
+            message_placeholder.markdown(r + "▌")
         message_placeholder.markdown(full_response)
         asstext = f"assistant: {full_response}"
-        writehistory(asstext)       
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        writehistory(asstext)
+        st.session_state.messages.append(
+            {"role": "assistant", "content": full_response}
+        )
