@@ -1,19 +1,34 @@
-# Android Rooting Framework
+# Android Rooting Framework with Advanced Security Testing
 
-Production-grade Android 13 ARM64 tablet rooting system with integrated bot framework for error handling, live monitoring, and GitHub-driven code updates.
+Production-grade Android 13 ARM64 tablet rooting system with integrated bot framework, Kali Linux tools, and AI-powered security analysis for comprehensive mobile penetration testing.
 
-## 🎯 Overview
+## 🚀 Features
 
-This comprehensive framework provides:
-
-- **Robust Root Detection**: Multi-method detection for Android 13 ARM64 devices
-- **Magisk Integration**: Complete Magisk management and installation
+### 📱 **Core Android Rooting Framework**
+- **Multi-method Root Detection**: Binary, package, property, SELinux, and partition analysis
+- **Magisk Integration**: Complete management with installation, repair, and module handling
+- **System Repair**: Automated partial root completion and recovery
 - **Live Bot Framework**: Real-time error handling and adaptive recovery
-- **GitHub Integration**: Live code updates and collaborative development
-- **Comprehensive Logging**: Full audit trail with compliance features
-- **Termux Compatibility**: Native support for Android 10+ environments
 
-## 🚀 Quick Start
+### 🔐 **Advanced Security Testing** (New!)
+- **HackTricks Integration**: Complete Android pentesting methodology implementation
+- **Kali Linux Tools**: Native integration with 30+ security tools
+- **NetHunter Support**: Full Kali NetHunter framework integration
+- **APK Analysis**: Static and dynamic analysis with vulnerability detection
+
+### 🧠 **AI-Powered Analysis** (New!)
+- **LLM Integration**: Intelligent security analysis using local LLM models
+- **Automated Reporting**: AI-generated security insights and recommendations
+- **Alpine Linux Support**: ARM64 containerized environments
+- **Live Code Updates**: GitHub-driven updates with integrity verification
+
+### 🌐 **Network Security Testing** (New!)
+- **Advanced Scanning**: Nmap, Masscan, vulnerability assessment
+- **Service Enumeration**: HTTP, directory brute force, service fingerprinting
+- **Comprehensive Reporting**: Professional security assessment reports
+- **Compliance Standards**: OWASP MSTG and industry best practices
+
+## 📋 Quick Start
 
 ### Option 1: Automated Setup (Recommended)
 
@@ -24,505 +39,304 @@ curl -sSL https://raw.githubusercontent.com/spiralgang/VARIABOT/main/android_roo
 # Check root status
 root-status
 
-# Complete rooting process
-android-root
+# Complete rooting process with AI analysis
+android-root --enable-ai
+
+# Run comprehensive security assessment
+python3 android_rooting/core/android_pentest.py full-pentest --package com.example.app
 ```
 
-### Option 2: Manual Installation
+### Option 2: Kali Linux Integration
 
 ```bash
-# Clone repository
+# Setup on Kali Linux with NetHunter
 git clone https://github.com/spiralgang/VARIABOT.git
 cd VARIABOT/android_rooting
 
-# Install dependencies
-pkg install python python-pip git curl wget -y
-pip install requests urllib3 psutil pyyaml cryptography
+# Initialize Kali environment
+python3 core/kali_integration.py setup-nethunter
+python3 core/kali_integration.py setup-llm
 
-# Make scripts executable
-find . -name "*.sh" -exec chmod +x {} \;
-find . -name "*.py" -exec chmod +x {} \;
+# Run advanced network assessment
+python3 core/kali_integration.py network-scan --target 192.168.1.100
 
-# Run setup
-./scripts/termux_setup.sh
+# Full security assessment with AI
+python3 core/kali_integration.py full-assessment --target 192.168.1.100
 ```
 
-## 📋 Prerequisites
-
-### Device Requirements
-- **Android Version**: 13+ (optimized for Android 13)
-- **Architecture**: ARM64 (aarch64)
-- **Device Type**: Tablets (tested on various ARM64 tablets)
-- **Storage**: Minimum 2GB free space
-- **Network**: Internet connection for bot updates
-
-### Software Requirements
-- **Termux**: Latest version from F-Droid
-- **Python**: 3.7+ (automatically installed)
-- **Root Access**: Partial or no root (framework will complete)
-
-## 🏗️ Architecture
+## 🏗️ Enhanced Architecture
 
 ```
 android_rooting/
-├── core/                    # Core rooting functionality
-│   ├── root_detector.py     # Multi-method root detection
-│   ├── magisk_manager.py    # Magisk integration and management
-│   └── system_repair.py     # System repair utilities
-├── bots/                    # Bot framework
-│   ├── error_handler_bot.py # Live error handling and recovery
-│   ├── live_monitor_bot.py  # Real-time system monitoring
-│   └── github_builder_bot.py # GitHub-driven code updates
-├── utils/                   # Utility modules
-│   ├── termux_compat.py     # Termux compatibility layer
-│   ├── logging_system.py    # Comprehensive logging
-│   └── network_utils.py     # Networking utilities
-├── scripts/                 # Executable scripts
-│   ├── android_root_complete.sh # Main rooting script
-│   └── termux_setup.sh      # Termux environment setup
-└── docs/                    # Documentation
-    ├── ANDROID_ROOTING_GUIDE.md
+├── core/                          # Core functionality
+│   ├── root_detector.py          # Multi-method root detection
+│   ├── magisk_manager.py         # Magisk integration
+│   ├── android_pentest.py        # 🆕 HackTricks pentesting framework
+│   └── kali_integration.py       # 🆕 Kali Linux & NetHunter integration
+├── bots/                          # Bot framework
+│   ├── error_handler_bot.py      # Live error handling
+│   ├── live_monitor_bot.py       # Real-time monitoring
+│   └── github_builder_bot.py     # Live code updates
+├── utils/                         # Utilities
+│   ├── termux_compat.py          # Termux compatibility
+│   ├── logging_system.py         # Comprehensive logging
+│   └── network_utils.py          # Network utilities
+├── scripts/                       # Executable scripts
+│   ├── android_root_complete.sh  # Main rooting script
+│   └── termux_setup.sh           # Environment setup
+└── docs/                          # Documentation
+    ├── ANDROID_ROOTING_GUIDE.md  # Complete guide
     └── LINUX_NETWORKING_COMMANDS_CHEATSHEET.md
 ```
 
-## 🔧 Core Features
+## 🔧 Enhanced Capabilities
 
-### Root Detection System
-
-```bash
-# Check current root status
-root-detect
-
-# Detailed analysis with JSON output
-root-detect --json --verbose
-
-# Available detection methods:
-# - Binary detection (su, busybox)
-# - Package detection (Magisk, SuperSU)
-# - Property analysis (build.prop)
-# - SELinux status checking
-# - Partition mount analysis
-```
-
-**Root Status Types:**
-- `full`: Complete root access with functional su
-- `partial`: Some root indicators but incomplete setup
-- `unrooted`: No root access detected
-- `unknown`: Detection failed or inconclusive
-
-### Magisk Management
+### **Android Penetration Testing** (New!)
 
 ```bash
-# Check Magisk status
-magisk-manage status
+# Device connection and APK extraction
+python3 android_rooting/core/android_pentest.py device-info
+python3 android_rooting/core/android_pentest.py extract-apk --package com.example.app
 
-# Repair partial Magisk installation
-magisk-manage repair
+# Static analysis with HackTricks methodology
+python3 android_rooting/core/android_pentest.py static-analysis --apk app.apk
 
-# Module management
-magisk-manage modules list
-magisk-manage modules enable <module_id>
-magisk-manage modules disable <module_id>
+# Dynamic analysis and runtime monitoring
+python3 android_rooting/core/android_pentest.py dynamic-analysis --package com.example.app
 
-# Advanced operations
-magisk-manage zygisk enable
-magisk-manage install --method patch
+# Comprehensive penetration testing
+python3 android_rooting/core/android_pentest.py full-pentest --package com.example.app
 ```
 
-### Bot Framework
+**Security Issues Detected:**
+- Debuggable applications and backup settings
+- Exported components and URL schemes
+- Hardcoded secrets and API keys
+- Network security configuration
+- Certificate and signing issues
+- Firebase misconfigurations
+- Tapjacking and task hijacking vulnerabilities
 
-The integrated bot system provides real-time monitoring and error recovery:
+### **Kali Linux Integration** (New!)
 
 ```bash
-# Start error handler bot
-error-bot --daemon
+# Environment detection and setup
+python3 android_rooting/core/kali_integration.py env-info
 
-# Interactive monitoring
-error-bot --interactive
+# NetHunter setup with Alpine Linux support
+python3 android_rooting/core/kali_integration.py setup-nethunter
 
-# Custom GitHub integration
-error-bot --github-repo owner/repo --github-token TOKEN
+# LLM integration for AI analysis
+python3 android_rooting/core/kali_integration.py setup-llm --model llama3
+
+# Advanced network scanning
+python3 android_rooting/core/kali_integration.py network-scan --target 192.168.1.0/24
 ```
 
-**Bot Capabilities:**
-- Real-time error detection and handling
-- Automatic recovery mechanisms
-- Live code updates from GitHub
-- Network connectivity monitoring
-- System health checks
-- Performance optimization
+**Integrated Kali Tools:**
+- **Network**: nmap, masscan, zmap, nikto, dirb, gobuster
+- **Mobile**: adb, fastboot, aapt, dex2jar, jadx, apktool
+- **Reverse Engineering**: radare2, ghidra, binwalk, strings
+- **Exploitation**: metasploit, sqlmap, burpsuite, zaproxy
+- **Android Specific**: drozer, objection, frida, mobsf
+- **AI/LLM**: ollama, llama, chatgpt-shell
 
-## 📖 Usage Examples
-
-### Basic Root Completion
-
-```bash
-# Simple root completion
-android-root
-
-# Force repair mode
-android-root --force-repair
-
-# Dry run (testing mode)
-android-root --dry-run
-```
-
-### Advanced Operations
-
-```bash
-# Start with bot monitoring
-error-bot --daemon &
-android-root --enable-bot
-
-# Custom configuration
-export GITHUB_REPO="your_repo"
-export GITHUB_TOKEN="your_token"
-android-root --github-integration
-
-# Specific root method
-android-root --method magisk
-android-root --method supersu
-android-root --method custom
-```
-
-### Monitoring and Analysis
-
-```bash
-# Real-time log monitoring
-tail -f ~/.android_rooting/logs/android_root_*.log
-
-# Performance analysis
-python3 -m android_rooting.utils.logging_system analyze
-
-# Network testing
-test-network
-port-scan 192.168.1.1 22,80,443
-```
-
-## 🤖 Bot Framework Details
-
-### Error Handler Bot
-
-The error handler bot provides intelligent error recovery:
+### **AI-Powered Security Analysis** (New!)
 
 ```python
-from android_rooting.bots.error_handler_bot import ErrorHandlerBot, ErrorEvent
+from android_rooting.core.kali_integration import KaliIntegration
 
-# Custom error handler
-def custom_root_handler(error_event: ErrorEvent) -> bool:
-    if "magisk_error" in error_event.category:
-        # Custom Magisk error handling
-        return handle_magisk_error(error_event)
-    return False
+# Initialize with LLM support
+kali = KaliIntegration()
+kali.setup_llm_integration('llama3')
 
-# Register custom handler
-bot = ErrorHandlerBot(config)
-bot.register_error_handler("magisk_error", custom_root_handler)
+# Analyze security findings with AI
+analysis_data = {'vulnerabilities': findings}
+ai_insights = kali.analyze_with_llm(analysis_data, "What are the critical security risks?")
+
+print(ai_insights['summary'])
+print(ai_insights['recommendations'])
 ```
 
-### Live Monitoring
+## 🛠️ Installation & Setup
+
+### Prerequisites
+- **For Android Rooting**: Termux on Android 10+, ARM64 device
+- **For Security Testing**: Kali Linux (optional), ADB tools
+- **For AI Analysis**: LLM support (Ollama recommended)
+
+### Enhanced Setup Process
 
 ```bash
-# Monitor system health
-bot.register_monitor(system_health_monitor)
+# 1. Basic Android rooting setup
+curl -sSL https://github.com/spiralgang/VARIABOT/raw/main/android_rooting/scripts/termux_setup.sh | bash
 
-# Monitor root processes
-bot.register_monitor(root_process_monitor)
+# 2. Enable advanced security testing
+pkg install nmap masscan nikto dirb -y
+pip install requests pyyaml
 
-# Monitor network connectivity
-bot.register_monitor(network_monitor)
+# 3. Setup LLM for AI analysis (optional)
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull llama3
+
+# 4. Configure environment
+export ANDROID_ROOTING_AI=true
+export KALI_INTEGRATION=true
 ```
 
-### GitHub Integration
+## 🚨 Enhanced Usage Examples
 
-```json
-{
-    "github_repo": "spiralgang/VARIABOT",
-    "github_token": "your_token_here",
-    "update_interval": 30,
-    "auto_update": true,
-    "update_branch": "main"
-}
+### Comprehensive Security Assessment
+
+```bash
+# 1. Check environment capabilities
+python3 android_rooting/core/kali_integration.py env-info --verbose
+
+# 2. Setup target for testing
+adb connect 192.168.1.100:5555
+
+# 3. Extract and analyze APK
+python3 android_rooting/core/android_pentest.py extract-apk --package com.example.app
+python3 android_rooting/core/android_pentest.py static-analysis --apk extracted_app.apk
+
+# 4. Network security assessment
+python3 android_rooting/core/kali_integration.py network-scan --target 192.168.1.100
+
+# 5. AI-powered analysis and reporting
+python3 android_rooting/core/kali_integration.py full-assessment --target 192.168.1.100 --package com.example.app
 ```
+
+### Advanced Root Management
+
+```bash
+# Enhanced root detection with security analysis
+root-detect --json --security-analysis
+
+# Magisk management with vulnerability checking
+magisk-manage repair --security-check
+
+# Complete rooting with AI monitoring
+android-root --enable-ai --kali-tools --comprehensive-scan
+```
+
+### Live Monitoring with AI
+
+```bash
+# Start enhanced error handler with AI
+error-bot --daemon --ai-analysis --kali-integration
+
+# Live security monitoring
+python3 android_rooting/bots/live_monitor_bot.py --ai-insights --network-monitoring
+
+# GitHub-driven updates with security validation
+python3 android_rooting/bots/github_builder_bot.py --security-check --ai-review
+```
+
+## 📊 Security Testing Capabilities
+
+### **Static Analysis Features**
+- **Manifest Analysis**: Debuggable apps, backup settings, exported components
+- **Code Analysis**: Hardcoded secrets, API keys, encryption issues
+- **Certificate Validation**: Debug signing, certificate pinning
+- **Network Configuration**: HTTP traffic, certificate validation
+- **Permission Analysis**: Dangerous permissions, runtime permissions
+
+### **Dynamic Analysis Features**
+- **Runtime Monitoring**: Process analysis, logcat monitoring
+- **Data Storage**: Shared preferences, SQLite databases, file access
+- **Network Traffic**: HTTP/HTTPS analysis, certificate validation
+- **Permission Usage**: Runtime permission requests and usage
+- **Behavioral Analysis**: Component interaction, intent analysis
+
+### **AI Analysis Capabilities**
+- **Vulnerability Assessment**: Risk scoring and prioritization
+- **Remediation Guidance**: Specific fix recommendations
+- **Threat Modeling**: Attack vector identification
+- **Compliance Checking**: OWASP MSTG alignment
+- **Best Practices**: Secure development recommendations
 
 ## 🔒 Security & Compliance
 
-### Audit Trail
+### **Enhanced Security Standards**
+- **OWASP MSTG Compliance**: Full Mobile Security Testing Guide alignment
+- **HackTricks Methodology**: Complete Android pentesting procedures
+- **Kali Linux Standards**: Industry-standard tool integration
+- **AI Security**: Secure LLM integration with local processing
+- **Audit Trails**: Comprehensive logging with integrity protection
 
-All operations are logged with comprehensive audit trails:
-
-```bash
-# View audit logs
-cat ~/.android_rooting/logs/audit.log | jq .
-
-# Security events
-cat ~/.android_rooting/logs/security.log | jq .
-
-# Compliance logging
-cat ~/.android_rooting/logs/compliance.log | jq .
-```
-
-### Security Best Practices
-
-1. **Minimal Permissions**: Only requests necessary permissions
-2. **Audit Logging**: Complete trail of all operations
-3. **Secure Communications**: HTTPS for all network operations
-4. **Code Integrity**: SHA verification for updates
-5. **Isolation**: Sandboxed execution environment
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-#### Permission Denied Errors
-```bash
-# Fix file permissions
-chmod +x ~/android_rooting/scripts/*.sh
-chmod +x ~/android_rooting/core/*.py
-
-# Setup Termux storage
-termux-setup-storage
-```
-
-#### Network Connectivity Issues
-```bash
-# Test network
-test-network
-
-# Reset DNS
-setprop net.dns1 8.8.8.8
-setprop net.dns2 8.8.4.4
-```
-
-#### Root Detection Failures
-```bash
-# Manual verification
-su -c "id"
-
-# Check Magisk
-magisk --version
-
-# System access test
-mount | grep system
-```
-
-#### Bot Framework Issues
-```bash
-# Check bot status
-ps aux | grep error_handler_bot
-
-# Restart bot
-pkill -f error_handler_bot.py
-error-bot --daemon
-```
-
-### Log Analysis
-
-```bash
-# Find recent errors
-grep -i error ~/.android_rooting/logs/*.log | tail -20
-
-# Monitor live logs
-tail -f ~/.android_rooting/logs/android_root_*.log
-
-# Analyze performance
-python3 -c "
-from android_rooting.utils.logging_system import get_logger
-logger = get_logger()
-print(logger.get_performance_stats())
-"
-```
-
-### Recovery Procedures
-
-#### Emergency Root Repair
-```bash
-# Stop processes
-pkill -f android_root
-pkill -f error_handler_bot
-
-# Reset Magisk
-magisk --stop
-rm -f /data/adb/magisk.db
-magisk --daemon
-
-# Force repair
-magisk-manage repair --force
-```
-
-#### Framework Reset
-```bash
-# Backup logs
-cp -r ~/.android_rooting/logs ~/backup_$(date +%Y%m%d)
-
-# Clean install
-rm -rf ~/android_rooting ~/.android_rooting
-curl -sSL https://raw.githubusercontent.com/spiralgang/VARIABOT/main/android_rooting/scripts/termux_setup.sh | bash
-```
-
-## 📚 Documentation
-
-- **[Complete Rooting Guide](docs/ANDROID_ROOTING_GUIDE.md)**: Detailed instructions and advanced usage
-- **[Networking Commands](docs/LINUX_NETWORKING_COMMANDS_CHEATSHEET.md)**: Network security and penetration testing commands
-- **[API Documentation](docs/API.md)**: Python API reference
-- **[Bot Framework Guide](docs/BOT_FRAMEWORK.md)**: Bot development and customization
-
-## 🧪 Testing
-
-### Unit Tests
-```bash
-python3 -m pytest android_rooting/tests/
-```
-
-### Integration Tests
-```bash
-# Test root detection
-python3 android_rooting/core/root_detector.py --test
-
-# Test Magisk integration
-python3 android_rooting/core/magisk_manager.py --test
-
-# Test bot framework
-python3 android_rooting/bots/error_handler_bot.py --test
-```
-
-### System Tests
-```bash
-# Complete system test
-android-root --test-mode
-
-# Network connectivity test
-test-network
-
-# Performance benchmark
-android-root --benchmark
-```
+### **Privacy Protection**
+- **Local Processing**: AI analysis runs locally when possible
+- **Data Minimization**: Only necessary data collection and processing
+- **Secure Storage**: Encrypted storage for sensitive findings
+- **Access Control**: Role-based access to security findings
 
 ## 🤝 Contributing
 
-### Development Setup
+### Enhanced Development Environment
+
 ```bash
-# Clone repository
+# Setup development environment
 git clone https://github.com/spiralgang/VARIABOT.git
 cd VARIABOT/android_rooting
 
-# Install development dependencies
+# Install enhanced dependencies
 pip install -r requirements-dev.txt
+pip install pytest pytest-cov black flake8
 
-# Setup pre-commit hooks
+# Setup Kali tools (if available)
+sudo apt update && sudo apt install kali-linux-default
+
+# Setup pre-commit hooks with security checks
 pre-commit install
-
-# Run tests
-pytest
 ```
 
-### Contribution Guidelines
+### **Security Testing Guidelines**
+1. **Responsible Disclosure**: Report vulnerabilities responsibly
+2. **Testing Authorization**: Only test on authorized systems
+3. **Data Protection**: Protect sensitive information discovered
+4. **Tool Usage**: Use tools ethically and legally
+5. **Documentation**: Document security findings properly
 
-1. **Code Quality**: Follow PEP 8 and include type hints
-2. **Testing**: Add tests for new functionality
-3. **Documentation**: Update docs for new features
-4. **Security**: Security review for all changes
-5. **Compatibility**: Ensure Android 10+ compatibility
+## 📚 Enhanced Documentation
 
-### Bot Development
+### **New Documentation**
+- **[HackTricks Integration Guide](docs/HACKTRICKS_INTEGRATION.md)**: Complete pentesting methodology
+- **[Kali Linux Setup Guide](docs/KALI_LINUX_SETUP.md)**: NetHunter and tools configuration
+- **[AI Analysis Guide](docs/AI_ANALYSIS.md)**: LLM integration and usage
+- **[Security Testing Procedures](docs/SECURITY_TESTING.md)**: Professional testing workflows
 
-```python
-# Custom bot example
-from android_rooting.bots.base_bot import BaseBot
+### **Reference Materials**
+- **[Android Security Testing](https://book.hacktricks.wiki/en/mobile-pentesting/android-app-pentesting)**: HackTricks methodology
+- **[OWASP MSTG](https://owasp.org/www-project-mobile-security-testing-guide/)**: Mobile security standards
+- **[Kali NetHunter](https://www.kali.org/docs/nethunter/)**: Mobile penetration testing platform
+- **[LLM on Kali](https://www.blackmoreops.com/install-llm-on-kali-linux/)**: AI integration guide
 
-class CustomRootBot(BaseBot):
-    def __init__(self):
-        super().__init__("custom_root_bot")
-    
-    def handle_error(self, error_event):
-        # Custom error handling logic
-        pass
-    
-    def monitor_system(self):
-        # Custom monitoring logic
-        pass
-```
+## 🎯 Professional Use Cases
 
-## 📊 Performance
+### **Penetration Testing Firms**
+- Complete Android application security assessments
+- Automated vulnerability discovery and reporting
+- AI-powered risk analysis and prioritization
+- Professional reporting with executive summaries
 
-### Benchmarks
+### **Security Researchers**
+- Advanced mobile malware analysis
+- Zero-day vulnerability research
+- Automated testing framework development
+- AI-assisted security pattern recognition
 
-| Operation | Average Time | Memory Usage |
-|-----------|-------------|--------------|
-| Root Detection | 2.3s | 15MB |
-| Magisk Repair | 45s | 25MB |
-| Bot Startup | 1.2s | 20MB |
-| Log Analysis | 0.8s | 10MB |
+### **Enterprise Security Teams**
+- Internal application security testing
+- Compliance validation (OWASP, industry standards)
+- Security awareness and training
+- Automated security pipeline integration
 
-### Optimization
-
-- **Parallel Processing**: Multi-threaded operations where safe
-- **Caching**: Intelligent caching of detection results
-- **Memory Management**: Efficient memory usage patterns
-- **Network Optimization**: Connection pooling and compression
-
-## 🔗 Integration
-
-### API Integration
-```python
-from android_rooting import RootingFramework
-
-# Initialize framework
-framework = RootingFramework()
-
-# Check root status
-status = framework.detect_root_status()
-
-# Complete rooting
-result = framework.complete_root()
-
-# Start monitoring
-framework.start_monitoring()
-```
-
-### External Tools
-- **Magisk Manager**: Native integration
-- **ADB**: Command-line interface
-- **Fastboot**: Bootloader operations
-- **Termux API**: Android system access
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## ⚠️ Disclaimer
-
-**Important**: This software is provided for educational and authorized testing purposes only. 
-
-- Rooting your device may void warranty
-- May expose security vulnerabilities
-- Could violate terms of service
-- Use at your own risk
-- Ensure compliance with applicable laws
-
-## 🙏 Acknowledgments
-
-### References and Sources
-
-- **Android Security Model**: [Android Open Source Project](https://source.android.com/security/)
-- **Magisk**: [topjohnwu/Magisk](https://github.com/topjohnwu/Magisk)
-- **Kali Linux**: [Kali Linux Documentation](https://www.kali.org/docs/)
-- **Termux**: [Termux Documentation](https://termux.com/docs/)
-- **Network Security**: [OWASP Mobile Security](https://owasp.org/www-project-mobile-security-testing-guide/)
-
-### Bot Framework Inspiration
-
-- **Awesome Bots**: [awesome-bots](https://git.hackliberty.org/Awesome-Mirrors/awesome-bots)
-- **AI Collection**: [ai-collection](https://git.hackliberty.org/Awesome-Mirrors/ai-collection)
-- **ChatGPT Resources**: [awesome-chatgpt](https://git.hackliberty.org/Awesome-Mirrors/awesome-chatgpt)
-
-### Contributors
-
-This project follows Android rooting standards and Linux networking best practices established by the security research community.
+### **Bug Bounty Hunters**
+- Efficient application reconnaissance
+- Automated vulnerability scanning
+- AI-assisted finding validation
+- Professional reporting generation
 
 ---
 
-**Last Updated**: $(date -Iseconds)  
-**Version**: 1.0.0  
-**Compatibility**: Android 13+ ARM64, Termux, Kali Linux  
-**Status**: Production Ready
+**🔐 Advanced Security Framework** | **🧠 AI-Powered Analysis** | **🐉 Kali Linux Integration** | **📱 Mobile Pentesting**
