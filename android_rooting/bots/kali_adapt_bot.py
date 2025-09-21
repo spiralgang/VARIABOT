@@ -304,19 +304,24 @@ class KaliAdaptBot:
             return False
 
     def execute_adaptation_cycle(self) -> bool:
-        """Execute a single adaptation cycle"""
+        """Execute adaptation cycle with NO-STOP-ON-FAIL behavior"""
         self.attempt_count += 1
         start_time = time.time()
 
         self.logger.info(
-            f"Adaptation cycle {self.attempt_count}/{self.config.max_attempts}"
+            f"Adaptation cycle {self.attempt_count}/{self.config.max_attempts} - NO STOP ON FAIL"
         )
+
+        # Check for REDHAT CRITICAL conditions first
+        if self._check_redhat_critical():
+            self.logger.critical("REDHAT CRITICAL detected - stopping to prevent bricking")
+            return False
 
         # Check current root status
         root_status_before = self.detect_root_status()
         self.logger.info(f"Root status before: {root_status_before.value}")
 
-        # Try each root method
+        # Try each root method with endless persistence
         success = False
         method_used = "none"
         error_message = None
@@ -331,8 +336,10 @@ class KaliAdaptBot:
                     self.logger.info(f"Method succeeded: {method_name}")
                     break
             except Exception as e:
+                # NO STOP ON FAIL - log but continue to next method
                 error_message = str(e)
-                self.logger.debug(f"Method {method_name} exception: {e}")
+                self.logger.debug(f"Method {method_name} failed but continuing: {e}")
+                continue  # Essential: continue to next method regardless of failure
 
         # Check root status after attempts
         root_status_after = self.detect_root_status()
@@ -358,14 +365,81 @@ class KaliAdaptBot:
             self._log_success()
             return True
 
-        # Log progress
+        # Log progress but continue regardless
         if root_status_after != root_status_before:
             self.logger.info(
                 f"Progress: {root_status_before.value} → {root_status_after.value}"
             )
+        else:
+            self.logger.info("No progress this cycle - mutating strategy and continuing...")
 
+        # Mutate strategy for next cycle
+        self._mutate_strategy()
+        
         self.last_root_status = root_status_after
+        return False  # Continue cycling
+
+    def _check_redhat_critical(self) -> bool:
+        """Check for REDHAT CRITICAL conditions indicating imminent bricking"""
+        critical_indicators = [
+            "bootloader permanently locked",
+            "recovery partition corrupted", 
+            "system verification failed permanently",
+            "secure boot chain broken",
+            "device tree blob corrupted",
+            "partition table corrupted",
+            "flash memory errors detected",
+            "hardware security module failed"
+        ]
+        
+        try:
+            # Check system logs for critical errors
+            result = subprocess.run(
+                ["dmesg"], capture_output=True, text=True, timeout=10
+            )
+            if result.returncode == 0:
+                dmesg_output = result.stdout.lower()
+                for indicator in critical_indicators:
+                    if indicator in dmesg_output:
+                        self.logger.critical(f"REDHAT CRITICAL: {indicator} detected")
+                        return True
+            
+            # Check basic system health
+            basic_tests = [
+                ["ls", "/system"],
+                ["id"], 
+                ["cat", "/proc/version"]
+            ]
+            
+            failed_tests = 0
+            for test in basic_tests:
+                try:
+                    result = subprocess.run(test, capture_output=True, timeout=5)
+                    if result.returncode != 0:
+                        failed_tests += 1
+                except Exception:
+                    failed_tests += 1
+            
+            if failed_tests >= len(basic_tests):
+                self.logger.critical("REDHAT CRITICAL: System basic functions failing")
+                return True
+                
+        except Exception as e:
+            self.logger.debug(f"Critical check error: {e}")
+            
         return False
+
+    def _mutate_strategy(self):
+        """Mutate rooting strategy for next cycle"""
+        import random
+        
+        # Randomize method order
+        random.shuffle(self.root_methods)
+        
+        # Adjust timeouts randomly
+        self.config.timeout = max(5, self.config.timeout + random.randint(-3, 5))
+        
+        self.logger.debug("Strategy mutated for next adaptation cycle")
 
     def _log_success(self) -> None:
         """Log successful root achievement"""

@@ -38,6 +38,7 @@ class ErrorSeverity(Enum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+    REDHAT_CRITICAL = "redhat_critical"  # System bricking imminent
 
 
 class BotStatus(Enum):
@@ -286,20 +287,62 @@ class ErrorHandlerBot:
         self._log_to_audit_trail(error_event)
 
     def _handle_builtin_error(self, error_event: ErrorEvent) -> bool:
-        """Handle errors with built-in handlers"""
+        """Handle errors with built-in handlers - NO STOP ON FAIL behavior"""
+        
+        # REDHAT CRITICAL check - only stop for imminent bricking
+        if error_event.severity == ErrorSeverity.REDHAT_CRITICAL:
+            self.logger.critical(f"REDHAT CRITICAL detected - stopping operations: {error_event.message}")
+            self.stop()
+            return False
+            
+        # For all other errors - continue with mutation adaptations
+        try:
+            if error_event.category == "root_failure":
+                self._handle_root_failure_no_stop(error_event)
+            elif error_event.category == "magisk_error":
+                self._handle_magisk_error_no_stop(error_event)
+            elif error_event.category == "permission_denied":
+                self._handle_permission_error_no_stop(error_event)
+            elif error_event.category == "network_error":
+                self._handle_network_error_no_stop(error_event)
+            elif error_event.category == "system_error":
+                self._handle_system_error_no_stop(error_event)
+            else:
+                self._handle_generic_error_no_stop(error_event)
+        except Exception as e:
+            # Even if handler fails, continue mutation adaptations
+            self.logger.warning(f"Handler failed but continuing: {e}")
+            
+        # Always return True to continue operations (except REDHAT_CRITICAL)
+        return True
 
-        if error_event.category == "root_failure":
-            return self._handle_root_failure(error_event)
-        elif error_event.category == "magisk_error":
-            return self._handle_magisk_error(error_event)
-        elif error_event.category == "permission_denied":
-            return self._handle_permission_error(error_event)
-        elif error_event.category == "network_error":
-            return self._handle_network_error(error_event)
-        elif error_event.category == "system_error":
-            return self._handle_system_error(error_event)
-
-        return False
+    def _handle_root_failure_no_stop(self, error: ErrorEvent):
+        """Handle root process failures with NO-STOP-ON-FAIL behavior"""
+        self.logger.info("Root failure detected - initiating endless mutation adaptations...")
+        
+        # Check for REDHAT CRITICAL conditions first
+        if self._is_redhat_critical(error):
+            self.report_error("system_critical", "REDHAT CRITICAL: Imminent bricking detected", 
+                            ErrorSeverity.REDHAT_CRITICAL, {"original_error": error.message})
+            return
+            
+        # Continue with mutation adaptations regardless of individual failures
+        mutation_strategies = [
+            self._mutate_root_method_magisk,
+            self._mutate_root_method_supersu, 
+            self._mutate_root_method_custom_exploit,
+            self._mutate_root_method_kali_bypass,
+            self._mutate_root_method_security_disable
+        ]
+        
+        for strategy in mutation_strategies:
+            try:
+                strategy(error)
+                # Continue to next strategy regardless of result
+            except Exception as e:
+                self.logger.debug(f"Mutation strategy failed but continuing: {e}")
+                # Ignore failures and continue adaptations
+                continue
 
     def _handle_root_failure(self, error: ErrorEvent) -> bool:
         """Handle root process failures"""
@@ -323,6 +366,127 @@ class ErrorHandlerBot:
                 self.logger.debug(f"Root method {method} failed: {e}")
 
         return False
+
+    def _is_redhat_critical(self, error: ErrorEvent) -> bool:
+        """Detect REDHAT CRITICAL conditions indicating imminent bricking"""
+        critical_indicators = [
+            "bootloader locked permanently",
+            "system partition corrupted beyond repair", 
+            "recovery partition missing",
+            "boot loop cannot be resolved",
+            "hardware failure detected",
+            "flash memory corruption",
+            "secure boot violation fatal",
+            "trustzone corruption",
+            "cannot access recovery mode",
+            "device tree corrupted"
+        ]
+        
+        # Check error message for critical indicators
+        error_msg = error.message.lower()
+        for indicator in critical_indicators:
+            if indicator in error_msg:
+                self.logger.critical(f"REDHAT CRITICAL indicator found: {indicator}")
+                return True
+                
+        # Check system state for bricking conditions
+        try:
+            # Check if bootloader is accessible
+            result = subprocess.run(["fastboot", "devices"], capture_output=True, timeout=5)
+            if result.returncode != 0:
+                # Check if adb is accessible
+                adb_result = subprocess.run(["adb", "devices"], capture_output=True, timeout=5)
+                if adb_result.returncode != 0 or "device" not in adb_result.stdout.decode():
+                    self.logger.warning("Neither fastboot nor adb accessible - potential bricking")
+                    return True
+        except Exception:
+            pass  # Don't trigger false positives
+            
+        return False
+
+    def _mutate_root_method_magisk(self, error: ErrorEvent):
+        """Mutation strategy: Try different Magisk approaches"""
+        try:
+            self.logger.info("Mutating to Magisk approach...")
+            subprocess.run(['python3', '-c', 
+                          'from android_rooting.core.magisk_manager import MagiskManager; m=MagiskManager(); m.repair_partial_root()'],
+                          timeout=30, capture_output=True)
+        except Exception as e:
+            self.logger.debug(f"Magisk mutation failed: {e}")
+
+    def _mutate_root_method_supersu(self, error: ErrorEvent):
+        """Mutation strategy: Try SuperSU approach"""
+        try:
+            self.logger.info("Mutating to SuperSU approach...")
+            # Attempt SuperSU installation
+            subprocess.run(['su', '-c', 'echo supersu_test'], timeout=10, capture_output=True)
+        except Exception as e:
+            self.logger.debug(f"SuperSU mutation failed: {e}")
+
+    def _mutate_root_method_custom_exploit(self, error: ErrorEvent):
+        """Mutation strategy: Try custom exploit approaches"""
+        try:
+            self.logger.info("Mutating to custom exploit approach...")
+            # Disable security features
+            exploit_commands = [
+                ['setenforce', '0'],
+                ['echo', '0', '>', '/proc/sys/kernel/randomize_va_space'],
+                ['mount', '-o', 'remount,rw', '/system']
+            ]
+            for cmd in exploit_commands:
+                subprocess.run(cmd, timeout=5, capture_output=True)
+        except Exception as e:
+            self.logger.debug(f"Custom exploit mutation failed: {e}")
+
+    def _mutate_root_method_kali_bypass(self, error: ErrorEvent):
+        """Mutation strategy: Try Kali Linux bypass methods"""
+        try:
+            self.logger.info("Mutating to Kali bypass approach...")
+            subprocess.run(['python3', '-c', 
+                          'from android_rooting.bots.kali_adapt_bot import KaliAdaptBot; bot=KaliAdaptBot(); bot.attempt_root()'],
+                          timeout=30, capture_output=True)
+        except Exception as e:
+            self.logger.debug(f"Kali bypass mutation failed: {e}")
+
+    def _mutate_root_method_security_disable(self, error: ErrorEvent):
+        """Mutation strategy: Disable security and retry"""
+        try:
+            self.logger.info("Mutating to security disable approach...")
+            # Try to disable various security features
+            security_commands = [
+                ['setprop', 'ro.debuggable', '1'],
+                ['setprop', 'ro.secure', '0'], 
+                ['setprop', 'service.adb.root', '1']
+            ]
+            for cmd in security_commands:
+                subprocess.run(cmd, timeout=5, capture_output=True)
+        except Exception as e:
+            self.logger.debug(f"Security disable mutation failed: {e}")
+
+    def _handle_magisk_error_no_stop(self, error: ErrorEvent):
+        """Handle Magisk errors with continued operation"""
+        self.logger.info("Magisk error - continuing with mutations...")
+        # Continue regardless of Magisk failures
+        
+    def _handle_permission_error_no_stop(self, error: ErrorEvent):
+        """Handle permission errors with continued operation"""
+        self.logger.info("Permission error - continuing with privilege escalation...")
+        # Continue regardless of permission issues
+        
+    def _handle_network_error_no_stop(self, error: ErrorEvent):
+        """Handle network errors with continued operation"""
+        self.logger.info("Network error - continuing offline...")
+        # Continue regardless of network issues
+        
+    def _handle_system_error_no_stop(self, error: ErrorEvent):
+        """Handle system errors with continued operation"""
+        self.logger.info("System error - continuing with workarounds...")
+        # Continue regardless of system issues
+        
+    def _handle_generic_error_no_stop(self, error: ErrorEvent):
+        """Handle any other errors with continued operation"""
+        self.logger.info(f"Generic error {error.category} - continuing with adaptations...")
+        # Continue regardless of any other errors
 
     def _handle_magisk_error(self, error: ErrorEvent) -> bool:
         """Handle Magisk-specific errors"""

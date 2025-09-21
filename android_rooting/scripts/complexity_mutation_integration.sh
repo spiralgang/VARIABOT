@@ -32,6 +32,10 @@ else
     MUTATION_STATE="${LOG_DIR}/mutation_state.json"
     LOOP_STATE="${LOG_DIR}/loop_state.json"
 fi
+
+# NO-STOP-ON-FAIL configuration
+NO_STOP_ON_FAIL=true
+REDHAT_CRITICAL_THRESHOLD=3  # Number of critical indicators before stopping
 MAX_MUTATION_CYCLES=1000
 CURRENT_CYCLE=0
 
@@ -723,6 +727,114 @@ save_mutation_state() {
     "mutations_applied": []
 }
 EOF
+}
+
+# Execute chained wheel loop with NO-STOP-ON-FAIL behavior
+execute_chained_wheel_loop() {
+    local max_cycles="${1:-$MAX_MUTATION_CYCLES}"
+    local current_cycle=1
+    
+    log_mutation "INFO" "CHAINED_LOOP" "Starting chained wheel loop with NO-STOP-ON-FAIL" "max_cycles=$max_cycles"
+    
+    while [[ $current_cycle -le $max_cycles ]]; do
+        CURRENT_CYCLE=$current_cycle
+        log_mutation "INFO" "CHAINED_LOOP" "Starting wheel cycle" "cycle=$current_cycle/$max_cycles"
+        
+        # CRITICAL: Check for REDHAT CRITICAL conditions first
+        if check_redhat_critical; then
+            log_mutation "CRITICAL" "CHAINED_LOOP" "REDHAT CRITICAL detected - stopping to prevent bricking" "cycle=$current_cycle"
+            return 1  # Only stop on REDHAT CRITICAL
+        fi
+        
+        # Execute all integration steps with NO-STOP-ON-FAIL behavior
+        local operations=0
+        local successes=0
+        
+        # Gap Analysis (continue on failure)
+        log_mutation "INFO" "CHAINED_LOOP" "Executing gap analysis" "cycle=$current_cycle"
+        if analyze_integration_gaps; then
+            ((successes++))
+            log_mutation "SUCCESS" "CHAINED_LOOP" "Gap analysis completed" "cycle=$current_cycle"
+        else
+            log_mutation "WARN" "CHAINED_LOOP" "Gap analysis failed but continuing" "cycle=$current_cycle"
+        fi
+        ((operations++))
+        
+        # Gap Remediation (continue on failure)
+        log_mutation "INFO" "CHAINED_LOOP" "Executing gap remediation" "cycle=$current_cycle"
+        if remediate_gaps; then
+            ((successes++))
+            log_mutation "SUCCESS" "CHAINED_LOOP" "Gap remediation completed" "cycle=$current_cycle"
+        else
+            log_mutation "WARN" "CHAINED_LOOP" "Gap remediation failed but continuing" "cycle=$current_cycle"
+        fi
+        ((operations++))
+        
+        # Integration Validation (continue on failure)
+        log_mutation "INFO" "CHAINED_LOOP" "Executing integration validation" "cycle=$current_cycle"
+        if validate_complete_integration; then
+            ((successes++))
+            log_mutation "SUCCESS" "CHAINED_LOOP" "Integration validation completed" "cycle=$current_cycle"
+        else
+            log_mutation "WARN" "CHAINED_LOOP" "Integration validation failed but continuing" "cycle=$current_cycle"
+        fi
+        ((operations++))
+        
+        # Interlocking Validation (continue on failure)
+        log_mutation "INFO" "CHAINED_LOOP" "Executing interlocking validation" "cycle=$current_cycle"
+        if validate_interlocking_mechanisms; then
+            ((successes++))
+            log_mutation "SUCCESS" "CHAINED_LOOP" "Interlocking validation completed" "cycle=$current_cycle"
+        else
+            log_mutation "WARN" "CHAINED_LOOP" "Interlocking validation failed but continuing" "cycle=$current_cycle"
+            # Try to repair interlocks but continue regardless
+            repair_interlocking_mechanisms || true
+        fi
+        ((operations++))
+        
+        # Mutation Adaptation (always execute)
+        log_mutation "INFO" "CHAINED_LOOP" "Executing mutation adaptation" "cycle=$current_cycle"
+        perform_mutation_adaptation "$current_cycle"
+        
+        # Calculate cycle effectiveness
+        local effectiveness=$((successes * 100 / operations))
+        log_mutation "INFO" "CHAINED_LOOP" "Wheel cycle completed" "cycle=$current_cycle effectiveness=${effectiveness}% successes=$successes/$operations"
+        
+        # Check for convergence (but continue even if not converged)
+        if [[ $effectiveness -ge 100 ]]; then
+            log_mutation "SUCCESS" "CHAINED_LOOP" "Perfect cycle achieved" "cycle=$current_cycle"
+        fi
+        
+        # Brief pause between cycles
+        sleep 1
+        
+        ((current_cycle++))
+    done
+    
+    log_mutation "INFO" "CHAINED_LOOP" "Maximum cycles completed - initiating background monitoring" "cycles=$max_cycles"
+    
+    # Continue with background monitoring even after max cycles
+    start_background_monitoring &
+    
+    return 0  # Always return success unless REDHAT CRITICAL
+}
+
+# Background monitoring to continue adaptations
+start_background_monitoring() {
+    log_mutation "INFO" "BACKGROUND" "Starting background monitoring" ""
+    
+    while true; do
+        # Check for critical conditions every 60 seconds
+        if check_redhat_critical; then
+            log_mutation "CRITICAL" "BACKGROUND" "REDHAT CRITICAL in background - terminating" ""
+            exit 1
+        fi
+        
+        # Perform lightweight gap analysis
+        analyze_integration_gaps >/dev/null 2>&1 || true
+        
+        sleep 60
+    done
 }
 
 # Main execution controller
