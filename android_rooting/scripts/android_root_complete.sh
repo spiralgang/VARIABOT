@@ -18,9 +18,28 @@ set -euo pipefail
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ANDROID_ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-LOG_FILE="/data/local/tmp/android_root_$(date +%Y%m%d_%H%M%S).log"
-AUDIT_FILE="/data/local/tmp/android_root_audit.log"
-PID_FILE="/data/local/tmp/android_root.pid"
+
+# Environment-aware path configuration (Termux compatible)
+if [[ -n "${PREFIX:-}" && -n "${HOME:-}" ]]; then
+    # Termux environment
+    LOG_DIR="${HOME}/.android_root_logs"
+    TMP_DIR="${PREFIX}/tmp"
+else
+    # Standard Linux environment
+    LOG_DIR="/tmp/android_root_logs"
+    TMP_DIR="/tmp"
+fi
+
+mkdir -p "$LOG_DIR" "$TMP_DIR"
+LOG_FILE="${LOG_DIR}/android_root_$(date +%Y%m%d_%H%M%S).log"
+AUDIT_FILE="${LOG_DIR}/android_root_audit.log"
+PID_FILE="${TMP_DIR}/android_root.pid"
+
+# Advanced configuration
+ESCALATION_MODE="comprehensive"
+SANDBOX_ESCAPE=true
+PRIVILEGE_ESCALATION=true
+NATIVE_EXPLOITS=true
 
 # Colors for output
 RED='\033[0;31m'
@@ -29,11 +48,13 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Bot configuration
+# Enhanced bot configuration for sandbox escape
 BOT_ENABLED=true
-BOT_CONFIG_FILE="/data/local/tmp/bot_config.json"
+BOT_CONFIG_FILE="${LOG_DIR}/bot_config.json"
 GITHUB_REPO="${GITHUB_REPO:-spiralgang/VARIABOT}"
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+ESCALATION_ENGINE_ACTIVE=true
+SANDBOX_ESCAPE_ENGINE_ACTIVE=true
 
 # Logging functions
 log() {
