@@ -17,9 +17,10 @@ if "messages" not in st.session_state:
 @st.cache_resource
 def create_client():   
     yourHFtoken = os.getenv('HF_TOKEN', '')  # Use environment variable for security
+    model_path = os.getenv('MODEL_PATH', 'TinyLlama/TinyLlama-1.1B-Chat-v1.0')  # Model path configurable via env
     print(f'Loading lightweight model: {st.session_state.hf_model} (1.1GB)')
     try:
-        client = Client("TinyLlama/TinyLlama-1.1B-Chat-v1.0", hf_token=yourHFtoken)
+        client = Client(model_path, hf_token=yourHFtoken)
         return client
     except Exception as e:
         st.error(f"Failed to load model: {e}")
