@@ -276,23 +276,6 @@ sv-enable variabot  # Auto-start on boot
 | **Android 10** | < 800MB | < 5s | Medium | 1-3 |
 | **Termux** | < 600MB | < 3s | Minimal | 5+ |
 
-## 🔒 Security Features
-
-### Android Security Hardening
-
-- **🔐 Secure Token Storage**: Android Keystore integration
-- **🛡️ Permission Management**: Runtime permission handling
-- **🔒 Encrypted Preferences**: Secure configuration storage
-- **🚫 Network Security**: TLS/SSL enforcement
-- **📱 App Sandboxing**: Proper Android security model compliance
-
-### Termux Security Best Practices
-
-- **🔑 SSH Key Management**: Automated key generation and rotation
-- **🛡️ Firewall Configuration**: Intelligent port management
-- **🔒 File Permissions**: Secure default permissions
-- **📝 Audit Logging**: Comprehensive security event logging
-
 ## 🐛 Troubleshooting
 
 ### Common Android Issues
