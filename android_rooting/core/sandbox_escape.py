@@ -36,176 +36,197 @@ from pathlib import Path
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 class SandboxEscapeEngine:
     """
     Advanced sandbox escape engine for breaking out of Android restrictions.
     Provides multiple vectors for achieving full system access.
     """
-    
+
     def __init__(self):
         self.system_info = self._gather_system_info()
         self.escape_vectors = []
         self.kernel_exploits = []
         self.service_exploits = []
         self.audit_trail = []
-        
+
         # Initialize escape techniques
         self._init_escape_vectors()
         self._init_kernel_exploits()
         self._init_service_exploits()
-        
+
     def _gather_system_info(self) -> Dict[str, Any]:
         """Gather comprehensive system information for exploit selection."""
         info = {}
-        
+
         try:
             # Kernel information
-            with open('/proc/version', 'r') as f:
-                info['kernel_version'] = f.read().strip()
-                
+            with open("/proc/version", "r") as f:
+                info["kernel_version"] = f.read().strip()
+
             # CPU information
-            with open('/proc/cpuinfo', 'r') as f:
+            with open("/proc/cpuinfo", "r") as f:
                 cpuinfo = f.read()
-                info['cpu_info'] = cpuinfo
-                
+                info["cpu_info"] = cpuinfo
+
             # Memory information
-            with open('/proc/meminfo', 'r') as f:
+            with open("/proc/meminfo", "r") as f:
                 meminfo = f.read()
-                info['memory_info'] = meminfo
-                
+                info["memory_info"] = meminfo
+
             # Mount information
-            with open('/proc/mounts', 'r') as f:
+            with open("/proc/mounts", "r") as f:
                 mounts = f.read()
-                info['mounts'] = mounts
-                
+                info["mounts"] = mounts
+
             # Process information
-            info['processes'] = []
-            for pid_dir in os.listdir('/proc'):
+            info["processes"] = []
+            for pid_dir in os.listdir("/proc"):
                 if pid_dir.isdigit():
                     try:
-                        with open(f'/proc/{pid_dir}/comm', 'r') as f:
+                        with open(f"/proc/{pid_dir}/comm", "r") as f:
                             comm = f.read().strip()
-                        with open(f'/proc/{pid_dir}/cmdline', 'r') as f:
+                        with open(f"/proc/{pid_dir}/cmdline", "r") as f:
                             cmdline = f.read().strip()
-                        info['processes'].append({
-                            'pid': int(pid_dir),
-                            'comm': comm,
-                            'cmdline': cmdline
-                        })
+                        info["processes"].append(
+                            {"pid": int(pid_dir), "comm": comm, "cmdline": cmdline}
+                        )
                     except:
                         continue
-                        
+
             # Network information
             try:
-                with open('/proc/net/tcp', 'r') as f:
-                    info['network_tcp'] = f.read()
+                with open("/proc/net/tcp", "r") as f:
+                    info["network_tcp"] = f.read()
             except:
                 pass
-                
+
         except Exception as e:
             logger.warning(f"Could not gather complete system info: {e}")
-            
+
         return info
-    
+
     def _init_escape_vectors(self):
         """Initialize sandbox escape vectors."""
-        
+
         # Vector 1: Termux PRoot escape
-        self.escape_vectors.append({
-            'name': 'termux_proot_escape',
-            'description': 'Escape Termux PRoot container to access host Android system',
-            'technique': 'container_breakout',
-            'success_rate': 0.85,
-            'risk_level': 'medium',
-            'function': self._termux_proot_escape
-        })
-        
+        self.escape_vectors.append(
+            {
+                "name": "termux_proot_escape",
+                "description": "Escape Termux PRoot container to access host Android system",
+                "technique": "container_breakout",
+                "success_rate": 0.85,
+                "risk_level": "medium",
+                "function": self._termux_proot_escape,
+            }
+        )
+
         # Vector 2: Android service exploitation
-        self.escape_vectors.append({
-            'name': 'service_exploitation',
-            'description': 'Exploit Android system services for privilege escalation',
-            'technique': 'service_abuse',
-            'success_rate': 0.75,
-            'risk_level': 'high',
-            'function': self._service_exploitation
-        })
-        
+        self.escape_vectors.append(
+            {
+                "name": "service_exploitation",
+                "description": "Exploit Android system services for privilege escalation",
+                "technique": "service_abuse",
+                "success_rate": 0.75,
+                "risk_level": "high",
+                "function": self._service_exploitation,
+            }
+        )
+
         # Vector 3: Filesystem breakout
-        self.escape_vectors.append({
-            'name': 'filesystem_breakout',
-            'description': 'Break out through filesystem manipulation and bind mounts',
-            'technique': 'filesystem_abuse',
-            'success_rate': 0.70,
-            'risk_level': 'medium',
-            'function': self._filesystem_breakout
-        })
-        
+        self.escape_vectors.append(
+            {
+                "name": "filesystem_breakout",
+                "description": "Break out through filesystem manipulation and bind mounts",
+                "technique": "filesystem_abuse",
+                "success_rate": 0.70,
+                "risk_level": "medium",
+                "function": self._filesystem_breakout,
+            }
+        )
+
         # Vector 4: Process injection
-        self.escape_vectors.append({
-            'name': 'process_injection',
-            'description': 'Inject code into privileged Android processes',
-            'technique': 'code_injection',
-            'success_rate': 0.60,
-            'risk_level': 'high',
-            'function': self._process_injection
-        })
-        
+        self.escape_vectors.append(
+            {
+                "name": "process_injection",
+                "description": "Inject code into privileged Android processes",
+                "technique": "code_injection",
+                "success_rate": 0.60,
+                "risk_level": "high",
+                "function": self._process_injection,
+            }
+        )
+
         # Vector 5: Native exploit chain
-        self.escape_vectors.append({
-            'name': 'native_exploit_chain',
-            'description': 'Use native Android exploits for direct kernel access',
-            'technique': 'kernel_exploit',
-            'success_rate': 0.65,
-            'risk_level': 'very_high',
-            'function': self._native_exploit_chain
-        })
-    
+        self.escape_vectors.append(
+            {
+                "name": "native_exploit_chain",
+                "description": "Use native Android exploits for direct kernel access",
+                "technique": "kernel_exploit",
+                "success_rate": 0.65,
+                "risk_level": "very_high",
+                "function": self._native_exploit_chain,
+            }
+        )
+
     def _init_kernel_exploits(self):
         """Initialize kernel-level exploits for Android 13."""
-        
+
         # CVE-2023-21400: Android Kernel Privilege Escalation
-        self.kernel_exploits.append({
-            'cve': 'CVE-2023-21400',
-            'description': 'Android kernel privilege escalation via use-after-free',
-            'affected_versions': ['Android 13'],
-            'exploit_code': self._cve_2023_21400_exploit
-        })
-        
+        self.kernel_exploits.append(
+            {
+                "cve": "CVE-2023-21400",
+                "description": "Android kernel privilege escalation via use-after-free",
+                "affected_versions": ["Android 13"],
+                "exploit_code": self._cve_2023_21400_exploit,
+            }
+        )
+
         # CVE-2023-21385: Qualcomm kernel vulnerability
-        self.kernel_exploits.append({
-            'cve': 'CVE-2023-21385',
-            'description': 'Qualcomm kernel driver privilege escalation',
-            'affected_versions': ['Android 13 Qualcomm'],
-            'exploit_code': self._cve_2023_21385_exploit
-        })
-    
+        self.kernel_exploits.append(
+            {
+                "cve": "CVE-2023-21385",
+                "description": "Qualcomm kernel driver privilege escalation",
+                "affected_versions": ["Android 13 Qualcomm"],
+                "exploit_code": self._cve_2023_21385_exploit,
+            }
+        )
+
     def _init_service_exploits(self):
         """Initialize Android system service exploits."""
-        
+
         # ActivityManager service exploitation
-        self.service_exploits.append({
-            'service': 'activity',
-            'description': 'Exploit ActivityManager for privilege escalation',
-            'method': self._exploit_activity_manager
-        })
-        
+        self.service_exploits.append(
+            {
+                "service": "activity",
+                "description": "Exploit ActivityManager for privilege escalation",
+                "method": self._exploit_activity_manager,
+            }
+        )
+
         # PackageManager service exploitation
-        self.service_exploits.append({
-            'service': 'package',
-            'description': 'Exploit PackageManager for system access',
-            'method': self._exploit_package_manager
-        })
-        
+        self.service_exploits.append(
+            {
+                "service": "package",
+                "description": "Exploit PackageManager for system access",
+                "method": self._exploit_package_manager,
+            }
+        )
+
         # SurfaceFlinger exploitation
-        self.service_exploits.append({
-            'service': 'SurfaceFlinger',
-            'description': 'Exploit SurfaceFlinger for graphics privilege escalation',
-            'method': self._exploit_surface_flinger
-        })
-    
+        self.service_exploits.append(
+            {
+                "service": "SurfaceFlinger",
+                "description": "Exploit SurfaceFlinger for graphics privilege escalation",
+                "method": self._exploit_surface_flinger,
+            }
+        )
+
     def _termux_proot_escape(self) -> Tuple[bool, str]:
         """
         Advanced Termux PRoot container escape.
@@ -213,7 +234,7 @@ class SandboxEscapeEngine:
         """
         try:
             logger.info("Attempting advanced Termux PRoot escape...")
-            
+
             # Create comprehensive escape script
             escape_script = """#!/bin/bash
 # Advanced Termux PRoot Escape Techniques
@@ -355,48 +376,54 @@ fi
 
 echo "[*] PRoot escape attempt completed"
 """
-            
+
             # Write and execute escape script
-            script_path = tempfile.mktemp(suffix='.sh')
-            with open(script_path, 'w') as f:
+            script_path = tempfile.mktemp(suffix=".sh")
+            with open(script_path, "w") as f:
                 f.write(escape_script)
             os.chmod(script_path, 0o755)
-            
+
             # Execute with timeout
-            result = subprocess.run(['bash', script_path], 
-                                  capture_output=True, text=True, timeout=120)
-            
+            result = subprocess.run(
+                ["bash", script_path], capture_output=True, text=True, timeout=120
+            )
+
             # Check for success indicators
             success_indicators = [
-                'ROOT_ACCESS_ACHIEVED',
-                'PROOT_ROOT_ACHIEVED', 
-                'ROOT_ACCESS_VERIFIED',
-                'HOST_FILESYSTEM_ACCESS'
+                "ROOT_ACCESS_ACHIEVED",
+                "PROOT_ROOT_ACHIEVED",
+                "ROOT_ACCESS_VERIFIED",
+                "HOST_FILESYSTEM_ACCESS",
             ]
-            
+
             if any(indicator in result.stdout for indicator in success_indicators):
-                self.audit_trail.append({
-                    'method': 'termux_proot_escape',
-                    'status': 'success',
-                    'timestamp': time.time(),
-                    'details': 'Advanced PRoot escape successful',
-                    'output': result.stdout
-                })
-                return True, "Advanced Termux PRoot escape successful - host system access achieved"
+                self.audit_trail.append(
+                    {
+                        "method": "termux_proot_escape",
+                        "status": "success",
+                        "timestamp": time.time(),
+                        "details": "Advanced PRoot escape successful",
+                        "output": result.stdout,
+                    }
+                )
+                return (
+                    True,
+                    "Advanced Termux PRoot escape successful - host system access achieved",
+                )
             else:
                 return False, f"PRoot escape failed: {result.stderr}"
-                
+
         except Exception as e:
             logger.error(f"PRoot escape error: {e}")
             return False, f"PRoot escape error: {str(e)}"
         finally:
             # Cleanup
-            if 'script_path' in locals():
+            if "script_path" in locals():
                 try:
                     os.unlink(script_path)
                 except:
                     pass
-    
+
     def _service_exploitation(self) -> Tuple[bool, str]:
         """
         Exploit Android system services for privilege escalation.
@@ -404,7 +431,7 @@ echo "[*] PRoot escape attempt completed"
         """
         try:
             logger.info("Attempting Android service exploitation...")
-            
+
             # Service exploitation script
             exploit_script = """#!/bin/bash
 # Android System Service Exploitation
@@ -491,42 +518,48 @@ fi
 
 echo "[*] Service exploitation completed"
 """
-            
-            script_path = tempfile.mktemp(suffix='.sh')
-            with open(script_path, 'w') as f:
+
+            script_path = tempfile.mktemp(suffix=".sh")
+            with open(script_path, "w") as f:
                 f.write(exploit_script)
             os.chmod(script_path, 0o755)
-            
-            result = subprocess.run(['bash', script_path], 
-                                  capture_output=True, text=True, timeout=90)
-            
+
+            result = subprocess.run(
+                ["bash", script_path], capture_output=True, text=True, timeout=90
+            )
+
             success_indicators = [
-                'SERVICE_ROOT_VERIFIED',
-                'BINDER_ROOT_ACHIEVED',
-                'ACTIVITY_MANAGER_EXPLOITED'
+                "SERVICE_ROOT_VERIFIED",
+                "BINDER_ROOT_ACHIEVED",
+                "ACTIVITY_MANAGER_EXPLOITED",
             ]
-            
+
             if any(indicator in result.stdout for indicator in success_indicators):
-                self.audit_trail.append({
-                    'method': 'service_exploitation',
-                    'status': 'success',
-                    'timestamp': time.time(),
-                    'details': 'Android service exploitation successful'
-                })
-                return True, "Android service exploitation successful - elevated access achieved"
+                self.audit_trail.append(
+                    {
+                        "method": "service_exploitation",
+                        "status": "success",
+                        "timestamp": time.time(),
+                        "details": "Android service exploitation successful",
+                    }
+                )
+                return (
+                    True,
+                    "Android service exploitation successful - elevated access achieved",
+                )
             else:
                 return False, f"Service exploitation failed: {result.stderr}"
-                
+
         except Exception as e:
             logger.error(f"Service exploitation error: {e}")
             return False, f"Service exploitation error: {str(e)}"
         finally:
-            if 'script_path' in locals():
+            if "script_path" in locals():
                 try:
                     os.unlink(script_path)
                 except:
                     pass
-    
+
     def _filesystem_breakout(self) -> Tuple[bool, str]:
         """
         Break out through filesystem manipulation and bind mounts.
@@ -534,7 +567,7 @@ echo "[*] Service exploitation completed"
         """
         try:
             logger.info("Attempting filesystem breakout...")
-            
+
             # Filesystem breakout script
             breakout_script = """#!/bin/bash
 # Advanced Filesystem Breakout Techniques
@@ -635,43 +668,49 @@ fi
 
 echo "[*] Filesystem breakout completed"
 """
-            
-            script_path = tempfile.mktemp(suffix='.sh')
-            with open(script_path, 'w') as f:
+
+            script_path = tempfile.mktemp(suffix=".sh")
+            with open(script_path, "w") as f:
                 f.write(breakout_script)
             os.chmod(script_path, 0o755)
-            
-            result = subprocess.run(['bash', script_path], 
-                                  capture_output=True, text=True, timeout=90)
-            
+
+            result = subprocess.run(
+                ["bash", script_path], capture_output=True, text=True, timeout=90
+            )
+
             success_indicators = [
-                'SYSTEM_ACCESS_VERIFIED',
-                'HOST_SYSTEM_ACCESS',
-                'OVERLAY_ROOT_ACHIEVED',
-                'WRITE_ACCESS_ACHIEVED'
+                "SYSTEM_ACCESS_VERIFIED",
+                "HOST_SYSTEM_ACCESS",
+                "OVERLAY_ROOT_ACHIEVED",
+                "WRITE_ACCESS_ACHIEVED",
             ]
-            
+
             if any(indicator in result.stdout for indicator in success_indicators):
-                self.audit_trail.append({
-                    'method': 'filesystem_breakout',
-                    'status': 'success',
-                    'timestamp': time.time(),
-                    'details': 'Filesystem breakout successful'
-                })
-                return True, "Filesystem breakout successful - host system access achieved"
+                self.audit_trail.append(
+                    {
+                        "method": "filesystem_breakout",
+                        "status": "success",
+                        "timestamp": time.time(),
+                        "details": "Filesystem breakout successful",
+                    }
+                )
+                return (
+                    True,
+                    "Filesystem breakout successful - host system access achieved",
+                )
             else:
                 return False, f"Filesystem breakout failed: {result.stderr}"
-                
+
         except Exception as e:
             logger.error(f"Filesystem breakout error: {e}")
             return False, f"Filesystem breakout error: {str(e)}"
         finally:
-            if 'script_path' in locals():
+            if "script_path" in locals():
                 try:
                     os.unlink(script_path)
                 except:
                     pass
-    
+
     def _process_injection(self) -> Tuple[bool, str]:
         """
         Inject code into privileged Android processes.
@@ -679,16 +718,21 @@ echo "[*] Filesystem breakout completed"
         """
         try:
             logger.info("Attempting process injection...")
-            
+
             # Find privileged processes
             privileged_processes = []
-            for proc_info in self.system_info.get('processes', []):
-                if proc_info['comm'] in ['init', 'system_server', 'surfaceflinger', 'servicemanager']:
+            for proc_info in self.system_info.get("processes", []):
+                if proc_info["comm"] in [
+                    "init",
+                    "system_server",
+                    "surfaceflinger",
+                    "servicemanager",
+                ]:
                     privileged_processes.append(proc_info)
-            
+
             if not privileged_processes:
                 return False, "No privileged processes found for injection"
-            
+
             # Process injection script
             injection_script = f"""#!/bin/bash
 # Process Injection for Privilege Escalation
@@ -776,41 +820,41 @@ done
 
 echo "[*] Process injection completed"
 """
-            
-            script_path = tempfile.mktemp(suffix='.sh')
-            with open(script_path, 'w') as f:
+
+            script_path = tempfile.mktemp(suffix=".sh")
+            with open(script_path, "w") as f:
                 f.write(injection_script)
             os.chmod(script_path, 0o755)
-            
-            result = subprocess.run(['bash', script_path], 
-                                  capture_output=True, text=True, timeout=60)
-            
-            success_indicators = [
-                'INJECTION_ROOT_ACHIEVED',
-                'MEMORY_ACCESS_ACHIEVED'
-            ]
-            
+
+            result = subprocess.run(
+                ["bash", script_path], capture_output=True, text=True, timeout=60
+            )
+
+            success_indicators = ["INJECTION_ROOT_ACHIEVED", "MEMORY_ACCESS_ACHIEVED"]
+
             if any(indicator in result.stdout for indicator in success_indicators):
-                self.audit_trail.append({
-                    'method': 'process_injection',
-                    'status': 'success',
-                    'timestamp': time.time(),
-                    'details': 'Process injection successful'
-                })
+                self.audit_trail.append(
+                    {
+                        "method": "process_injection",
+                        "status": "success",
+                        "timestamp": time.time(),
+                        "details": "Process injection successful",
+                    }
+                )
                 return True, "Process injection successful - privileged access achieved"
             else:
                 return False, f"Process injection failed: {result.stderr}"
-                
+
         except Exception as e:
             logger.error(f"Process injection error: {e}")
             return False, f"Process injection error: {str(e)}"
         finally:
-            if 'script_path' in locals():
+            if "script_path" in locals():
                 try:
                     os.unlink(script_path)
                 except:
                     pass
-    
+
     def _native_exploit_chain(self) -> Tuple[bool, str]:
         """
         Use native Android exploits for direct kernel access.
@@ -818,7 +862,7 @@ echo "[*] Process injection completed"
         """
         try:
             logger.info("Attempting native exploit chain...")
-            
+
             # Native exploit chain script
             exploit_script = """#!/bin/bash
 # Native Android Exploit Chain
@@ -974,146 +1018,163 @@ fi
 
 echo "[*] Native exploit chain completed"
 """
-            
-            script_path = tempfile.mktemp(suffix='.sh')
-            with open(script_path, 'w') as f:
+
+            script_path = tempfile.mktemp(suffix=".sh")
+            with open(script_path, "w") as f:
                 f.write(exploit_script)
             os.chmod(script_path, 0o755)
-            
-            result = subprocess.run(['bash', script_path], 
-                                  capture_output=True, text=True, timeout=120)
-            
+
+            result = subprocess.run(
+                ["bash", script_path], capture_output=True, text=True, timeout=120
+            )
+
             success_indicators = [
-                'CVE_2023_21400_SUCCESS',
-                'BINDER_EXPLOIT_SUCCESS',
-                'ION_EXPLOIT_SUCCESS',
-                'DRM_EXPLOIT_SUCCESS',
-                'NATIVE_EXPLOIT_ROOT_VERIFIED'
+                "CVE_2023_21400_SUCCESS",
+                "BINDER_EXPLOIT_SUCCESS",
+                "ION_EXPLOIT_SUCCESS",
+                "DRM_EXPLOIT_SUCCESS",
+                "NATIVE_EXPLOIT_ROOT_VERIFIED",
             ]
-            
+
             if any(indicator in result.stdout for indicator in success_indicators):
-                self.audit_trail.append({
-                    'method': 'native_exploit_chain',
-                    'status': 'success',
-                    'timestamp': time.time(),
-                    'details': 'Native exploit chain successful'
-                })
-                return True, "Native exploit chain successful - kernel-level access achieved"
+                self.audit_trail.append(
+                    {
+                        "method": "native_exploit_chain",
+                        "status": "success",
+                        "timestamp": time.time(),
+                        "details": "Native exploit chain successful",
+                    }
+                )
+                return (
+                    True,
+                    "Native exploit chain successful - kernel-level access achieved",
+                )
             else:
                 return False, f"Native exploit chain failed: {result.stderr}"
-                
+
         except Exception as e:
             logger.error(f"Native exploit chain error: {e}")
             return False, f"Native exploit chain error: {str(e)}"
         finally:
-            if 'script_path' in locals():
+            if "script_path" in locals():
                 try:
                     os.unlink(script_path)
                 except:
                     pass
-    
+
     def execute_sandbox_escape(self) -> Dict[str, Any]:
         """
         Execute sandbox escape using the most effective method.
         Returns comprehensive results and audit information.
         """
         logger.info("Starting comprehensive sandbox escape...")
-        
+
         results = {
-            'success': False,
-            'method_used': None,
-            'details': '',
-            'system_access': False,
-            'root_access': False,
-            'audit_trail': [],
-            'recommendations': []
+            "success": False,
+            "method_used": None,
+            "details": "",
+            "system_access": False,
+            "root_access": False,
+            "audit_trail": [],
+            "recommendations": [],
         }
-        
+
         # Sort escape vectors by success rate and risk level
-        sorted_vectors = sorted(self.escape_vectors, 
-                              key=lambda x: (x['success_rate'], -['low', 'medium', 'high', 'very_high'].index(x['risk_level'])), 
-                              reverse=True)
-        
+        sorted_vectors = sorted(
+            self.escape_vectors,
+            key=lambda x: (
+                x["success_rate"],
+                -["low", "medium", "high", "very_high"].index(x["risk_level"]),
+            ),
+            reverse=True,
+        )
+
         # Try each escape vector
         for vector in sorted_vectors:
             logger.info(f"Attempting {vector['name']}: {vector['description']}")
-            
+
             try:
-                success, message = vector['function']()
-                
+                success, message = vector["function"]()
+
                 if success:
-                    results['success'] = True
-                    results['method_used'] = vector['name']
-                    results['details'] = message
-                    results['system_access'] = True
-                    
+                    results["success"] = True
+                    results["method_used"] = vector["name"]
+                    results["details"] = message
+                    results["system_access"] = True
+
                     # Test for root access
                     try:
-                        root_test = subprocess.run(['su', '-c', 'id'], 
-                                                 capture_output=True, text=True, timeout=5)
-                        if root_test.returncode == 0 and 'uid=0' in root_test.stdout:
-                            results['root_access'] = True
+                        root_test = subprocess.run(
+                            ["su", "-c", "id"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                        )
+                        if root_test.returncode == 0 and "uid=0" in root_test.stdout:
+                            results["root_access"] = True
                     except:
                         pass
-                    
+
                     # Add recommendations
-                    results['recommendations'] = [
+                    results["recommendations"] = [
                         "Verify system access with file system checks",
                         "Test root access with privileged commands",
                         "Install persistent root management (Magisk)",
                         "Configure system properties for debugging",
-                        "Set up comprehensive security monitoring"
+                        "Set up comprehensive security monitoring",
                     ]
-                    
+
                     logger.info(f"Sandbox escape successful using {vector['name']}")
                     break
                 else:
                     logger.warning(f"Escape vector {vector['name']} failed: {message}")
-                    
+
             except Exception as e:
                 logger.error(f"Error executing {vector['name']}: {e}")
                 continue
-        
+
         # Add audit trail
-        results['audit_trail'] = self.audit_trail
-        
-        if not results['success']:
-            results['details'] = "All sandbox escape methods failed"
-            results['recommendations'] = [
+        results["audit_trail"] = self.audit_trail
+
+        if not results["success"]:
+            results["details"] = "All sandbox escape methods failed"
+            results["recommendations"] = [
                 "Check for additional device-specific vulnerabilities",
-                "Try alternative container escape techniques", 
+                "Try alternative container escape techniques",
                 "Consider using external tools or ADB access",
                 "Verify device bootloader unlock status",
-                "Investigate custom exploit development"
+                "Investigate custom exploit development",
             ]
-        
+
         return results
+
 
 def main():
     """Main function for command-line usage."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description='Android Sandbox Escape Engine')
-    parser.add_argument('--info', action='store_true', help='Show system information')
-    parser.add_argument('--escape', action='store_true', help='Attempt sandbox escape')
-    parser.add_argument('--vector', help='Use specific escape vector')
-    parser.add_argument('--audit', action='store_true', help='Show audit trail')
-    
+
+    parser = argparse.ArgumentParser(description="Android Sandbox Escape Engine")
+    parser.add_argument("--info", action="store_true", help="Show system information")
+    parser.add_argument("--escape", action="store_true", help="Attempt sandbox escape")
+    parser.add_argument("--vector", help="Use specific escape vector")
+    parser.add_argument("--audit", action="store_true", help="Show audit trail")
+
     args = parser.parse_args()
-    
+
     engine = SandboxEscapeEngine()
-    
+
     if args.info:
         print(json.dumps(engine.system_info, indent=2))
-        
+
     if args.escape:
         results = engine.execute_sandbox_escape()
         print(json.dumps(results, indent=2))
-        
+
     if args.audit:
         print(json.dumps(engine.audit_trail, indent=2))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
 
 """
