@@ -31,8 +31,7 @@ log() {
     local level="$1"
     shift
     local message="$*"
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${timestamp} [${level}] ${message}" | tee -a "$LOG_FILE"
 }
 
