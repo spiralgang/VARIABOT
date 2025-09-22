@@ -1,17 +1,17 @@
 #!/bin/bash
-"""
-Termux Setup Script for Android Rooting Framework
-Prepares Termux environment for Android rooting operations
-
-This script provides:
-- Termux environment setup and configuration
-- Required package installation
-- Python environment preparation
-- Bot framework deployment
-- Networking and privilege setup
-
-Compatible with: Termux on Android 10+, ARM64 architecture
-"""
+#
+# Termux Setup Script for Android Rooting Framework
+# Prepares Termux environment for Android rooting operations
+#
+# This script provides:
+# - Termux environment setup and configuration
+# - Required package installation
+# - Python environment preparation
+# - Bot framework deployment
+# - Networking and privilege setup
+#
+# Compatible with: Termux on Android 10+, ARM64 architecture
+#
 
 set -euo pipefail
 
@@ -22,27 +22,30 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration - Use environment variables for Termux paths
-TERMUX_PREFIX="${PREFIX:-}"
-if [[ -z "$TERMUX_PREFIX" ]]; then
-    log_error "PREFIX environment variable not set - not running in Termux?"
-    exit 1
-fi
+# Configuration - Set up basic paths first
 SETUP_DIR="$HOME/.android_rooting_setup"
 LOG_FILE="$HOME/termux_setup_$(date +%Y%m%d_%H%M%S).log"
 
-# Logging functions
+# Logging functions - Define after LOG_FILE
 log() {
     local level="$1"
     shift
     local message="$*"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${timestamp} [${level}] ${message}" | tee -a "$LOG_FILE"
 }
 
 log_info() { log "INFO" "$@"; }
 log_warn() { log "WARN" "$@"; }
 log_error() { log "ERROR" "$@"; }
+
+# Configuration - Use environment variables for Termux paths
+TERMUX_PREFIX="${PREFIX:-}"
+if [[ -z "$TERMUX_PREFIX" ]]; then
+    log_error "PREFIX environment variable not set - not running in Termux?"
+    exit 1
+fi
 
 # Error handling
 cleanup() {
@@ -698,7 +701,7 @@ main() {
 }
 
 # Script entry point
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
     main "$@"
 fi
 
