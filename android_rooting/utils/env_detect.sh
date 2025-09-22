@@ -1,17 +1,14 @@
 #!/data/data/com.termux/files/usr/bin/bash
-"""
-Environment Detection Utility
-Production-grade environment detection for Android/Termux/Kali contexts
-
-This script provides:
-- Comprehensive environment detection
-- Platform capability assessment
-- Privilege level detection
-- Tool availability checking
-
-Compatible with: Termux, Android 10+, Kali Linux, Standard Linux
-"""
-
+# Environment Detection Utility
+# Production-grade environment detection for Android/Termux/Kali contexts
+#
+# This script provides:
+# - Comprehensive environment detection
+# - Platform capability assessment
+# - Privilege level detection
+# - Tool availability checking
+#
+# Compatible with: Termux, Android 10+, Kali Linux, Standard Linux
 set -euo pipefail
 
 # Global variables
