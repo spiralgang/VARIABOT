@@ -55,7 +55,8 @@ log_mutation() {
     local component="$2"
     local message="$3"
     local mutation_data="$4"
-    local timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%dT%H:%M:%S')
     
     echo "${timestamp} ${level} MUTATION-${component}: ${message} | DATA: ${mutation_data}" >> "$COMPLIANCE_LOG"
     
@@ -411,7 +412,8 @@ remediate_gaps() {
 # Missing file creation with smart templates
 create_missing_file() {
     local file_path="$1"
-    local file_name=$(basename "$file_path")
+    local file_name
+    file_name=$(basename "$file_path")
     
     log_mutation "INFO" "FILE_CREATION" "Creating missing file" "path=$file_path"
     

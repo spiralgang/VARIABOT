@@ -21,15 +21,10 @@ Security Notice: For authorized device modification only.
 """
 
 import os
-import sys
 import subprocess
-import socket
-import threading
 import time
 import tempfile
-import shutil
 import json
-import struct
 import ctypes
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path

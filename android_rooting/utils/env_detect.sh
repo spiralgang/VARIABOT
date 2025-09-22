@@ -1,16 +1,16 @@
 #!/data/data/com.termux/files/usr/bin/bash
-"""
-Environment Detection Utility
-Production-grade environment detection for Android/Termux/Kali contexts
-
-This script provides:
-- Comprehensive environment detection
-- Platform capability assessment
-- Privilege level detection
-- Tool availability checking
-
-Compatible with: Termux, Android 10+, Kali Linux, Standard Linux
-"""
+#
+# Environment Detection Utility
+# Production-grade environment detection for Android/Termux/Kali contexts
+#
+# This script provides:
+# - Comprehensive environment detection
+# - Platform capability assessment
+# - Privilege level detection
+# - Tool availability checking
+#
+# Compatible with: Termux, Android 10+, Kali Linux, Standard Linux
+#
 
 set -euo pipefail
 
@@ -158,18 +158,21 @@ check_android_capabilities() {
     if [[ "$ENV_TYPE" == "termux" || "$ENV_TYPE" == "android" ]]; then
         # Check Android version
         if [[ -f "/system/build.prop" ]]; then
-            local android_version=$(grep "ro.build.version.release" /system/build.prop 2>/dev/null | cut -d'=' -f2 || echo "unknown")
+            local android_version
+            android_version=$(grep "ro.build.version.release" /system/build.prop 2>/dev/null | cut -d'=' -f2 || echo "unknown")
             PLATFORM_INFO="${PLATFORM_INFO} (Android ${android_version})"
             CAPABILITIES+=("android_version_${android_version}")
         fi
         
         # Check architecture
-        local arch=$(uname -m)
+        local arch
+        arch=$(uname -m)
         CAPABILITIES+=("arch_${arch}")
         
         # Check for SELinux
         if [[ -f "/sys/fs/selinux/enforce" ]]; then
-            local selinux_status=$(cat /sys/fs/selinux/enforce 2>/dev/null || echo "unknown")
+            local selinux_status
+            selinux_status=$(cat /sys/fs/selinux/enforce 2>/dev/null || echo "unknown")
             if [[ "$selinux_status" == "0" ]]; then
                 CAPABILITIES+=("selinux_permissive")
             elif [[ "$selinux_status" == "1" ]]; then
