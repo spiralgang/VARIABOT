@@ -224,10 +224,9 @@ class StorageManager:
             self.logger.error(f"Failed to create temp directory: {e}")
             # Fallback to basic temp path
             # Use system temp directory as fallback
-            fallback_dir = os.path.join(
-                tempfile.gettempdir(), f"{prefix}_{os.getpid()}"
-            )
-            os.makedirs(fallback_dir, exist_ok=True)
+            # Fallback to basic temp path using mkdtemp for unpredictability
+            fallback_dir = tempfile.mkdtemp(prefix=f"{prefix}_")
+            self.logger.debug(f"Created fallback temp directory: {fallback_dir}")
             return fallback_dir
 
 
