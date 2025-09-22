@@ -394,8 +394,9 @@ class ErrorBotDaemon:
         
         try:
             # Check if root detection fails
+            root_detect_path = str(Path(__file__).parent / "root-detect")
             result = subprocess.run(
-                ["python3", "/home/runner/work/VARIABOT/VARIABOT/android_rooting/scripts/root-detect", "--json"],
+                ["python3", root_detect_path, "--json"],
                 capture_output=True, text=True, timeout=10
             )
             
