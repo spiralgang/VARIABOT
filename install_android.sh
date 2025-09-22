@@ -5,7 +5,7 @@
 # Handles restricted environment operations and mobile device constraints
 #
 
-set -e  # Exit on any error
+set -euo pipefail  # Exit on any error, unset variable, or failed pipeline
 
 # Colors for output
 RED='\033[0;31m'
