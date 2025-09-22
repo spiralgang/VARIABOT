@@ -1,17 +1,19 @@
 #!/bin/bash
-"""
-Android 13 ARM64 Tablet Rooting Completion Script
-Production-grade script for completing Android rooting process
-
-This script provides:
-- Comprehensive root detection and status checking
-- Magisk integration for rooting completion
-- Error handling and recovery mechanisms
-- Live bot framework integration
-- Detailed logging and audit trail
-
-Compatible with: Android 13 ARM64, Termux, Kali Linux environments
-"""
+#
+# Android 13 ARM64 Tablet Rooting Completion Script
+# Production-grade script for completing Android rooting process
+#
+# This script provides:
+# - Comprehensive root detection and status checking
+# - Magisk integration for rooting completion
+# - Android SystemUI privilege escalation exploitation
+# - Error handling and recovery mechanisms
+# - Live bot framework integration
+# - Detailed logging and audit trail
+#
+# Compatible with: Android 13 ARM64, Termux, Kali Linux environments
+# References: /reference_vault/ORGANIZATION_STANDARDS.md#android-rooting-framework
+#
 
 set -euo pipefail
 
@@ -513,6 +515,59 @@ EOF
     echo -e "${BLUE}===========================================${NC}\n"
 }
 
+# Execute Android system exploitation framework
+execute_android_system_exploitation() {
+    log_info "Launching Android system privilege escalation framework..."
+    
+    # Check if the system exploitation module exists
+    if [[ ! -f "$ANDROID_ROOT_DIR/core/android_system_exploit.py" ]]; then
+        log_warn "Android system exploitation module not found"
+        return 1
+    fi
+    
+    # Execute SystemUI privilege escalation
+    log_info "Attempting SystemUI privilege escalation attack..."
+    
+    local exploit_result
+    if exploit_result=$(python3 "$ANDROID_ROOT_DIR/core/android_system_exploit.py" --action exploit --device "${ADB_DEVICE:-}" 2>&1); then
+        
+        # Parse exploitation results
+        if echo "$exploit_result" | grep -q "Escalation Success: True"; then
+            log_info "✓ SystemUI privilege escalation successful"
+            
+            # Extract acquired permissions
+            local acquired_perms
+            acquired_perms=$(echo "$exploit_result" | grep "Acquired Permissions:" | cut -d: -f2 | xargs)
+            if [[ -n "$acquired_perms" ]] && [[ "$acquired_perms" != "0" ]]; then
+                log_info "✓ Acquired $acquired_perms privileged permissions"
+                
+                # Log specific permissions acquired
+                echo "$exploit_result" | grep "•" | while read -r line; do
+                    log_info "  Permission: ${line##*• }"
+                done
+                
+                # Update current privilege level
+                export CURRENT_PRIVILEGE_LEVEL="system"
+                log_info "Privilege level elevated to: system"
+                
+                return 0
+            fi
+        fi
+    fi
+    
+    log_warn "SystemUI privilege escalation had limited or no success"
+    
+    # Attempt system intelligence gathering as fallback
+    log_info "Performing system intelligence gathering..."
+    if python3 "$ANDROID_ROOT_DIR/core/android_system_exploit.py" --action scan --device "${ADB_DEVICE:-}" 2>/dev/null; then
+        log_info "✓ System intelligence gathering completed"
+        return 0
+    else
+        log_warn "System intelligence gathering failed"
+        return 1
+    fi
+}
+
 # Main execution function
 main() {
     echo -e "${BLUE}Android 13 ARM64 Tablet Rooting Completion Script${NC}"
@@ -526,7 +581,15 @@ main() {
         exit 1
     fi
     
-    # Step 2: Setup bot configuration and start bot
+    # Step 2: Execute Android system exploitation framework (per organization standards)
+    log_info "${BLUE}Executing Android system privilege escalation...${NC}"
+    if execute_android_system_exploitation; then
+        log_info "${GREEN}✓ Android system exploitation completed successfully${NC}"
+    else
+        log_warn "${YELLOW}⚠ Android system exploitation had limited success${NC}"
+    fi
+    
+    # Step 3: Setup bot configuration and start bot
     setup_bot_config
     start_bot
     
