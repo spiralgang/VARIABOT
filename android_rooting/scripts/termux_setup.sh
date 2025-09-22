@@ -72,11 +72,13 @@ check_termux_environment() {
     log_info "Termux prefix: $TERMUX_PREFIX"
     
     # Check Android version
-    local android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
+    local android_version
+    android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
     log_info "Android version: $android_version"
     
     # Check architecture
-    local arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
+    local arch
+    arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
     log_info "CPU architecture: $arch"
     
     if [[ "$arch" != *"arm64"* ]] && [[ "$arch" != *"aarch64"* ]]; then
@@ -585,16 +587,22 @@ EOF
 generate_setup_report() {
     log_info "Generating setup report..."
     
-    local report_file="$HOME/.android_rooting/setup_report_$(date +%Y%m%d_%H%M%S).json"
+    local report_file
+    report_file="$HOME/.android_rooting/setup_report_$(date +%Y%m%d_%H%M%S).json"
     
     # Collect system information
-    local android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
-    local device_model=$(getprop ro.product.model 2>/dev/null || echo "unknown")
-    local cpu_arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
+    local android_version
+    android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
+    local device_model
+    device_model=$(getprop ro.product.model 2>/dev/null || echo "unknown")
+    local cpu_arch
+    cpu_arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
     
     # Check installations
-    local python_version=$(python --version 2>&1 | cut -d' ' -f2 || echo "unknown")
-    local git_version=$(git --version 2>&1 | cut -d' ' -f3 || echo "unknown")
+    local python_version
+    python_version=$(python --version 2>&1 | cut -d' ' -f2 || echo "unknown")
+    local git_version
+    git_version=$(git --version 2>&1 | cut -d' ' -f3 || echo "unknown")
     
     cat > "$report_file" << EOF
 {
