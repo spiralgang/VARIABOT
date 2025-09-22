@@ -1,19 +1,16 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-"""
-Android Root Finalization Script
-Production-grade script for completing Android rooting process
-
-This script provides:
-- Root completion from partial to full root
-- Magisk integration and verification  
-- Error handling with endless adaptation
-- Kali Linux chroot integration for advanced exploitation
-
-Compatible with: Android 13 ARM64, Termux, Kali Linux environments
-"""
-
+# Android Root Finalization Script
+# Production-grade script for completing Android rooting process
+#
+# This script provides:
+# - Root completion from partial to full root
+# - Magisk integration and verification  
+# - Error handling with endless adaptation
+# - Kali Linux chroot integration for advanced exploitation
+#
+# Compatible with: Android 13 ARM64, Termux, Kali Linux environments
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ANDROID_ROOT_DIR="$(dirname "$SCRIPT_DIR")"
