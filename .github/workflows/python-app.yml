@@ -254,3 +254,19 @@ print('✅ COMPLIANT: All AI models properly configured')
         echo "🎉 100% COMPLIANCE ACHIEVED!"
         echo "✅ All checks passed for Python ${{ matrix.python-version }}"
         echo "🚀 Repository maintains SUSTAINABLE FLAWLESSNESS ABILITY"
+            - name: Montara CI
+  # You may pin to the exact commit or the version.
+  # uses: montara-io/montara-ci@eca5afc53f2e39c847d187e4bf43b1bef9e1056e
+  uses: montara-io/montara-ci@v1.0.20
+  with:
+    # The URL of the webhook
+    webhookUrl: 
+    # Whether to use smart run, defaults to true
+    isSmartRun: # optional, default is true
+    # The variables to pass to the test run, a stringified JSON object of key-value pairs. for example: {"var1": "value1", "var2": "value2"}
+    variables: # optional
+    # Whether to allow concurrent pipeline runs, defaults to true
+    allowConcurrentPipelineRuns: # optional, default is true
+    # The number of retries to attempt
+    numRetries: # optional, default is 60
+          
