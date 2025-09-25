@@ -172,7 +172,7 @@ launch_interface() {
     
     case "$interface" in
         "universal")
-            python variabot_universal.py --interface web --android-optimize --termux $extra_args
+            python variabot_universal.py --interface web --android-optimize --termux "$extra_args"
             ;;
         "streamlit")
             # Auto-select best available model for device
@@ -188,7 +188,7 @@ launch_interface() {
             fi
             ;;
         "terminal")
-            python variabot_universal.py --interface terminal --termux $extra_args
+            python variabot_universal.py --interface terminal --termux "$extra_args"
             ;;
         *)
             echo -e "${RED}ERROR: Unknown interface: $interface${NC}"

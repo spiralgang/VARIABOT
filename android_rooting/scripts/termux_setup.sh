@@ -1,17 +1,17 @@
 #!/bin/bash
-"""
-Termux Setup Script for Android Rooting Framework
-Prepares Termux environment for Android rooting operations
-
-This script provides:
-- Termux environment setup and configuration
-- Required package installation
-- Python environment preparation
-- Bot framework deployment
-- Networking and privilege setup
-
-Compatible with: Termux on Android 10+, ARM64 architecture
-"""
+#
+# Termux Setup Script for Android Rooting Framework
+# Prepares Termux environment for Android rooting operations
+#
+# This script provides:
+# - Termux environment setup and configuration
+# - Required package installation
+# - Python environment preparation
+# - Bot framework deployment
+# - Networking and privilege setup
+#
+# Compatible with: Termux on Android 10+, ARM64 architecture
+#
 
 set -euo pipefail
 
@@ -22,16 +22,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration - Use environment variables for Termux paths
-TERMUX_PREFIX="${PREFIX:-}"
-if [[ -z "$TERMUX_PREFIX" ]]; then
-    log_error "PREFIX environment variable not set - not running in Termux?"
-    exit 1
-fi
+# Configuration - Set up basic paths first
 SETUP_DIR="$HOME/.android_rooting_setup"
 LOG_FILE="$HOME/termux_setup_$(date +%Y%m%d_%H%M%S).log"
 
-# Logging functions
+# Logging functions - Define after LOG_FILE
 log() {
     local level="$1"
     shift
@@ -43,6 +38,13 @@ log() {
 log_info() { log "INFO" "$@"; }
 log_warn() { log "WARN" "$@"; }
 log_error() { log "ERROR" "$@"; }
+
+# Configuration - Use environment variables for Termux paths
+TERMUX_PREFIX="${PREFIX:-}"
+if [[ -z "$TERMUX_PREFIX" ]]; then
+    log_error "PREFIX environment variable not set - not running in Termux?"
+    exit 1
+fi
 
 # Error handling
 cleanup() {
@@ -69,11 +71,13 @@ check_termux_environment() {
     log_info "Termux prefix: $TERMUX_PREFIX"
     
     # Check Android version
-    local android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
+    local android_version
+    android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
     log_info "Android version: $android_version"
     
     # Check architecture
-    local arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
+    local arch
+    arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
     log_info "CPU architecture: $arch"
     
     if [[ "$arch" != *"arm64"* ]] && [[ "$arch" != *"aarch64"* ]]; then
@@ -224,7 +228,148 @@ setup_rooting_framework() {
     ln -sf "$HOME/android_rooting/bots/error_handler_bot.py" "$PREFIX/bin/error-bot"
     
     log_info "✓ Android rooting framework setup completed"
+    
+    # Detect and configure Android system exploitation capabilities
+    setup_android_system_detection
+    
     return 0
+}
+
+# Detect Android system configuration and privilege escalation opportunities
+setup_android_system_detection() {
+    log_info "Detecting Android system configuration for privilege escalation..."
+    
+    # Create Android system analysis directory
+    mkdir -p "$HOME/.android_rooting/system_analysis"
+    
+    # Detect Android version and security patch level
+    local android_version
+    android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
+    local security_patch
+    security_patch=$(getprop ro.build.version.security_patch 2>/dev/null || echo "unknown")
+    local cpu_arch
+    cpu_arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
+    
+    log_info "Android version: $android_version"
+    log_info "Security patch level: $security_patch"
+    log_info "CPU architecture: $cpu_arch"
+    
+    # Check for SystemUI privileged permissions (as per organization standards)
+    log_info "Analyzing SystemUI privileged permissions..."
+    local systemui_perms=(
+        "android.permission.CAPTURE_AUDIO_OUTPUT"
+        "android.permission.ALLOW_SLIPPERY_TOUCHES"
+        "android.permission.BATTERY_STATS"
+        "android.permission.BIND_APPWIDGET"
+        "android.permission.BLUETOOTH_PRIVILEGED"
+        "android.permission.CHANGE_COMPONENT_ENABLED_STATE"
+        "android.permission.CHANGE_DEVICE_IDLE_TEMP_WHITELIST"
+        "android.permission.DUMP"
+        "android.permission.WRITE_SECURE_SETTINGS"
+    )
+    
+    local systemui_analysis="$HOME/.android_rooting/system_analysis/systemui_permissions.log"
+    echo "SystemUI Privileged Permission Analysis - $(date)" > "$systemui_analysis"
+    echo "=========================================" >> "$systemui_analysis"
+    
+    for permission in "${systemui_perms[@]}"; do
+        if dumpsys package com.android.systemui 2>/dev/null | grep -q "$permission"; then
+            echo "✓ FOUND: $permission" >> "$systemui_analysis"
+            log_info "SystemUI permission detected: $permission"
+        else
+            echo "✗ MISSING: $permission" >> "$systemui_analysis"
+        fi
+    done
+    
+    # Analyze system app privilege levels  
+    log_info "Analyzing system app privilege configurations..."
+    local priv_apps_analysis="$HOME/.android_rooting/system_analysis/privileged_apps.log"
+    echo "Privileged Apps Analysis - $(date)" > "$priv_apps_analysis"
+    echo "=================================" >> "$priv_apps_analysis"
+    
+    # Check for privileged system apps that could be exploited
+    if pm list packages -s 2>/dev/null | head -20 >> "$priv_apps_analysis"; then
+        log_info "✓ System app enumeration completed"
+    else
+        log_warn "System app enumeration failed - limited privileges"
+    fi
+    
+    # Check SELinux status for exploitation planning
+    local selinux_status
+    selinux_status=$(getenforce 2>/dev/null || echo "unknown")
+    log_info "SELinux status: $selinux_status"
+    
+    # Generate system exploitation configuration
+    cat > "$HOME/.android_rooting/system_analysis/system_config.json" << EOF
+{
+    "android_version": "$android_version",
+    "security_patch_level": "$security_patch",
+    "cpu_architecture": "$cpu_arch", 
+    "selinux_status": "$selinux_status",
+    "analysis_timestamp": "$(date -Iseconds)",
+    "systemui_permissions_found": true,
+    "exploitation_targets": [
+        "com.android.systemui",
+        "system_server",
+        "privileged_system_apps"
+    ],
+    "recommended_exploit_methods": [
+        "systemui_privapp_permissions",
+        "privileged_app_exploitation",
+        "system_service_manipulation"
+    ]
+}
+EOF
+    
+    # Create Android system exploitation launcher
+    cat > "$HOME/.android_rooting/scripts/android_system_exploit.sh" << 'EOF'
+#!/bin/bash
+#
+# Android System Exploitation Launcher
+# Integrates with comprehensive Android system privilege escalation framework
+#
+# References: /reference_vault/linux_kali_android.md#android-exploitation
+#
+
+set -euo pipefail
+
+ANDROID_ROOTING_HOME="${ANDROID_ROOTING_HOME:-$HOME/android_rooting}"
+SYSTEM_ANALYSIS_DIR="$HOME/.android_rooting/system_analysis"
+
+echo "🔓 Android System Exploitation Framework"
+echo "========================================"
+
+if [[ -f "$SYSTEM_ANALYSIS_DIR/system_config.json" ]]; then
+    echo "System Configuration:"
+    python3 -c "
+import json
+with open('$SYSTEM_ANALYSIS_DIR/system_config.json') as f:
+    config = json.load(f)
+    print(f'  Android Version: {config[\"android_version\"]}')
+    print(f'  Security Patch: {config[\"security_patch_level\"]}')
+    print(f'  Architecture: {config[\"cpu_architecture\"]}')
+    print(f'  SELinux: {config[\"selinux_status\"]}')
+"
+    echo
+fi
+
+echo "Available Exploitation Methods:"
+echo "  1. SystemUI Privilege Escalation"
+echo "  2. System App Permission Exploitation"
+echo "  3. Comprehensive System Analysis"
+echo "  4. Generate Exploitation Report"
+echo
+
+# Launch the Python-based exploitation framework
+python3 "$ANDROID_ROOTING_HOME/core/android_system_exploit.py" "$@"
+EOF
+    
+    chmod +x "$HOME/.android_rooting/scripts/android_system_exploit.sh"
+    ln -sf "$HOME/.android_rooting/scripts/android_system_exploit.sh" "$PREFIX/bin/android-exploit"
+    
+    log_info "✓ Android system detection and exploitation setup completed"
+    log_info "  Use 'android-exploit' command to launch system exploitation framework"
+    log_info "  System analysis saved to: $HOME/.android_rooting/system_analysis/"
 }
 
 # Setup Termux services
@@ -582,16 +727,22 @@ EOF
 generate_setup_report() {
     log_info "Generating setup report..."
     
-    local report_file="$HOME/.android_rooting/setup_report_$(date +%Y%m%d_%H%M%S).json"
+    local report_file
+    report_file="$HOME/.android_rooting/setup_report_$(date +%Y%m%d_%H%M%S).json"
     
     # Collect system information
-    local android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
-    local device_model=$(getprop ro.product.model 2>/dev/null || echo "unknown")
-    local cpu_arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
+    local android_version
+    android_version=$(getprop ro.build.version.release 2>/dev/null || echo "unknown")
+    local device_model
+    device_model=$(getprop ro.product.model 2>/dev/null || echo "unknown")
+    local cpu_arch
+    cpu_arch=$(getprop ro.product.cpu.abi 2>/dev/null || echo "unknown")
     
     # Check installations
-    local python_version=$(python --version 2>&1 | cut -d' ' -f2 || echo "unknown")
-    local git_version=$(git --version 2>&1 | cut -d' ' -f3 || echo "unknown")
+    local python_version
+    python_version=$(python --version 2>&1 | cut -d' ' -f2 || echo "unknown")
+    local git_version
+    git_version=$(git --version 2>&1 | cut -d' ' -f3 || echo "unknown")
     
     cat > "$report_file" << EOF
 {
@@ -698,7 +849,7 @@ main() {
 }
 
 # Script entry point
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]:-$0}" == "${0}" ]]; then
     main "$@"
 fi
 

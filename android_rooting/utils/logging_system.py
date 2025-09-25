@@ -18,6 +18,7 @@ import sys
 import json
 import logging
 import logging.handlers
+import tempfile
 import threading
 import time
 import hashlib
