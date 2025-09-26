@@ -222,14 +222,14 @@ class StorageManager:
             return temp_dir
         except Exception as e:
             self.logger.error(f"Failed to create temp directory: {e}")
-            # Fallback to basic temp path
-            # Use system temp directory as fallback
-            # Fallback to basic temp path using mkdtemp for unpredictability
-            fallback_dir = tempfile.mkdtemp(prefix=f"{prefix}_")
-            self.logger.debug(f"Created fallback temp directory: {fallback_dir}")
-            return fallback_dir
-
-
+            # Fallback: try using the system default temp directory explicitly
+            try:
+                fallback_dir = tempfile.mkdtemp(prefix=f"{prefix}_", dir=tempfile.gettempdir())
+                self.logger.debug(f"Created fallback temp directory: {fallback_dir}")
+                return fallback_dir
+            except Exception as fallback_e:
+                self.logger.error(f"Failed to create fallback temp directory: {fallback_e}")
+                raise
 class PackageManager:
     """Termux package management utilities"""
 
