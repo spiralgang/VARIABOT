@@ -1,4 +1,3 @@
-
 # Contributing to Variabot
 
 First off, thank you for considering contributing to Variabot! It's people like you that make Variabot such a great tool.
@@ -48,6 +47,16 @@ git push --force-with-lease origin 38-add-awesome-new-feature
 ```
 
 Finally, go to GitHub and [make a Pull Request](https://github.com/your-repo/compare) :D
+
+## Pull Request Checklist
+Each PR description MUST include:
+- Purpose (1–2 lines).
+- Scope (what changed vs explicitly out-of-scope).
+- Traceability list: vault sections touched or relied upon.
+- Adaptability + mutation summary.
+- Live-runs summary (manual, automated, environment).
+- Rollback plan (how to fallback and initiate an alternate route forward to achieve goals).
+- MUTATE LIVING CODE TO NEXT GOAL-ACHIEVING ADAPTATION STRATEGY if any element is missing then Copilot should supply a stub and mark gaps.
 
 ## Keeping your Pull Request updated
 
