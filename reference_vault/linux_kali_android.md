@@ -1518,3 +1518,48 @@ df -h $PREFIX
 | Monitoring Tools | ✅ | ✅ | ✅ | ❌ |
 
 **Legend:** ✅ Full Support, ⚠️ Limited Support, ❌ Not Supported
+
+## 🤖 Android Rooting and Kali Linux Integration
+
+### Primary Goal: Finalize Half-Root to Full Root on Android 13
+
+This section details the process of finalizing a half-rooted Android 13 tablet to a full root state using a combination of Termux, Magisk, and a Kali Linux chroot environment. The process is designed to be fully automated and adaptable, utilizing "living code bots" to overcome errors and ensure a successful root.
+
+### Core Components
+
+*   **Termux**: The initial entry point on the Android device.
+*   **Magisk**: The primary rooting tool.
+*   **Kali Linux (chroot)**: Provides a powerful environment for advanced exploitation and adaptation.
+*   **Living Code Bots**: Python scripts that monitor the rooting process, adapt to errors, and mutate their own code to overcome obstacles.
+
+### Step-by-Step Rooting Process
+
+1.  **Initial Setup (Termux)**:
+    *   The process begins by executing the `finalize_root.sh` script within Termux.
+    *   This script checks for the current root state. If full root is not detected, it proceeds with the rooting process.
+
+2.  **Magisk Installation and Patching**:
+    *   The script attempts to install or update Magisk.
+    *   It will try to patch the boot image (`boot.img`). If the boot image is not available, it will fall back to exploitation techniques.
+
+3.  **Kali Linux Chroot Escalation**:
+    *   If the initial Magisk installation fails, the script escalates to a Kali Linux chroot environment.
+    *   The `proot-distro` utility is used to install Kali Linux within Termux.
+
+4.  **Living Code Bot Adaptation**:
+    *   Once inside the Kali chroot, a Python bot (`kali_adapt_bot.py`) is launched as a background daemon.
+    *   This bot monitors the rooting logs for errors.
+    *   If an error is detected, the bot will mutate the `finalize_root.sh` script with a new exploit or workaround and re-execute it.
+    *   This process continues in an endless loop until full root is achieved.
+
+5.  **Exploitation Techniques**:
+    *   The bots will attempt various exploitation techniques, including:
+        *   Disabling SELinux (`setenforce 0`).
+        *   Disabling ASLR (`echo 0 > /proc/sys/kernel/randomize_va_space`).
+        *   Utilizing known kernel exploits for privilege escalation.
+
+### GitHub Actions for Live Build and Adaptation
+
+*   A GitHub Actions workflow (`.github/workflows/root_bot.yml`) is used to build and test the rooting scripts in a simulated environment.
+*   This allows for continuous integration and testing of the rooting process.
+*   The workflow can also be used to remotely trigger the rooting process on the device.

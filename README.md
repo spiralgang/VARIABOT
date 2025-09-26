@@ -179,7 +179,7 @@ root-detect --json
 error-bot --daemon
 
 # Complete rooting process
-android-root --enable-bot
+android_root --enable-bot
 
 # Manage Magisk modules
 magisk-manage modules list

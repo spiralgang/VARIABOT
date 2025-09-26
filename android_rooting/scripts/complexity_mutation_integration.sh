@@ -88,7 +88,7 @@ analyze_integration_gaps() {
     local required_files=(
         "${SCRIPT_DIR}/root-detect"
         "${SCRIPT_DIR}/error-bot"
-        "${SCRIPT_DIR}/android-root"
+        "${SCRIPT_DIR}/android_root"
         "${SCRIPT_DIR}/finalize_root.sh"
         "${SCRIPT_DIR}/termux_kali_chroot.sh"
         "${ANDROID_ROOT_DIR}/bots/kali_adapt_bot.py"
@@ -107,8 +107,8 @@ analyze_integration_gaps() {
     
     # 2. Integration Pathway Gaps
     local integration_paths=(
-        "root-detect->android-root"
-        "android-root->error-bot"
+        "root-detect->android_root"
+        "android_root->error-bot"
         "error-bot->kali_adapt_bot"
         "kali_adapt_bot->finalize_root"
         "finalize_root->root-detect"
@@ -160,10 +160,10 @@ validate_integration_chain() {
     # Check if source can invoke target
     case "$source" in
         "root-detect")
-            # Should be able to provide status to android-root
+            # Should be able to provide status to android_root
             return 0
             ;;
-        "android-root")
+        "android_root")
             # Should be able to start error-bot
             if [[ -x "${SCRIPT_DIR}/error-bot" ]]; then
                 return 0
@@ -468,10 +468,10 @@ This comprehensive guide covers the complete rooting process for Android devices
 3. **Rooting Process**
    ```bash
    # Automatic method selection
-   ./android_rooting/scripts/android-root root
+   ./android_rooting/scripts/android_root root
    
    # Specific method
-   ./android_rooting/scripts/android-root root adaptive
+   ./android_rooting/scripts/android_root root adaptive
    ```
 
 ### Advanced Integration
@@ -517,20 +517,20 @@ tail -f /sdcard/error-bot.log
 #### Recovery Actions
 ```bash
 # Stop all processes
-./android_rooting/scripts/android-root stop
+./android_rooting/scripts/android_root stop
 
 # Reset to clean state
 rm -rf ~/.android_root_config/*
 
 # Restart with fresh configuration
-./android_rooting/scripts/android-root root auto
+./android_rooting/scripts/android_root root auto
 ```
 
 ### Integration Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   root-detect   │───▶│   android-root  │───▶│   error-bot     │
+│   root-detect   │───▶│   android_root  │───▶│   error-bot     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          ▲                        │                        │
          │                        ▼                        ▼
@@ -569,10 +569,10 @@ repair_integration_chain() {
     
     # Implement chain-specific repair logic
     case "$chain" in
-        "root-detect->android-root")
-            # Ensure android-root can parse root-detect output
-            if ! grep -q "root-detect" "${SCRIPT_DIR}/android-root" 2>/dev/null; then
-                log_mutation "WARN" "CHAIN_REPAIR" "Integration missing in android-root" "chain=$chain"
+        "root-detect->android_root")
+            # Ensure android_root can parse root-detect output
+            if ! grep -q "root-detect" "${SCRIPT_DIR}/android_root" 2>/dev/null; then
+                log_mutation "WARN" "CHAIN_REPAIR" "Integration missing in android_root" "chain=$chain"
                 return 1
             fi
             ;;

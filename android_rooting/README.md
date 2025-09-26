@@ -40,8 +40,7 @@ curl -sSL https://raw.githubusercontent.com/spiralgang/VARIABOT/main/android_roo
 root-status
 
 # Complete rooting process with AI analysis
-android-root --enable-ai
-
+    android_root --enable-ai
 # Run comprehensive security assessment
 python3 android_rooting/core/android_pentest.py full-pentest --package com.example.app
 ```
@@ -216,7 +215,7 @@ root-detect --json --security-analysis
 magisk-manage repair --security-check
 
 # Complete rooting with AI monitoring
-android-root --enable-ai --kali-tools --comprehensive-scan
+android_root --enable-ai --kali-tools --comprehensive-scan
 ```
 
 ### Live Monitoring with AI
