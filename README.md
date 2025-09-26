@@ -1,6 +1,23 @@
+
 # VARIABOT - Advanced AI & Android Rooting Framework
 
 A comprehensive multi-purpose framework combining AI chatbot capabilities with production-grade Android rooting tools and live bot integration.
+
+## Table of Contents
+- [🚀 Features](#-features)
+- [📋 Quick Start](#-quick-start)
+- [🏗️ Project Structure](#️-project-structure)
+- [🔧 Android Rooting Features](#-android-rooting-features)
+- [🤖 AI Chatbot Interfaces](#-ai-chatbot-interfaces)
+- [📚 Documentation](#-documentation)
+- [🛠️ Installation](#️-installation)
+- [🚨 Usage Examples](#-usage-examples)
+- [🔒 Security & Legal](#-security--legal)
+- [🤝 Contributing](#-contributing)
+- [📊 Project Stats](#-project-stats)
+- [🙏 Acknowledgments](#-acknowledgments)
+- [📄 License](#-license)
+- [References](#references)
 
 ## 🚀 Features
 
@@ -190,6 +207,7 @@ streamlit run st-Openelm-3B.py
 - May violate terms of service
 - Use only on devices you own
 - For educational/authorized testing only
+- For detailed exploit payloads and rooting procedures, see the [Linux, Kali, and Android Standards](reference_vault/linux_kali_android.md) document in the reference vault.
 
 ### AI Chatbots
 - Requires HuggingFace API tokens
@@ -251,3 +269,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Multi-Purpose Framework** | **Production Ready** | **Android 10+ Compatible** | **AI-Powered**
+
+## References
+- Internal: /reference_vault/PRODUCTION_GRADE_STANDARDS.md
+- Internal: /reference_vault/linux_kali_android.md
+- Internal: /reference_vault/ORGANIZATION_STANDARDS.md
+- External: Magisk Guide — https://topjohnwu.github.io/Magisk/install.html
+- External: Kali NetHunter Guide — https://www.kali.org/docs/nethunter/installing-nethunter/
