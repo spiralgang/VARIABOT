@@ -1,1 +1,1 @@
-"""Bot framework for error handling and monitoring"""
+# Error adaptation bots

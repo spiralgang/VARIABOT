@@ -1,1 +1,1 @@
-"""Utility modules for Android rooting framework"""
+# Android utilities and helpers

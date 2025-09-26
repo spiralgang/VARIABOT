@@ -1,1 +1,1 @@
-"""Core Android rooting functionality"""
+# Core Android rooting components
