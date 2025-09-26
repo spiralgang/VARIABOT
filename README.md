@@ -1,24 +1,33 @@
-# VARIABOT - Agentic AI & Android Rooting Matrix
 
-A comprehensive, self-evolving framework combining a multi-agent AI rooting system with a versatile chatbot interface.
+# VARIABOT - Advanced AI & Android Rooting Framework
+
+A comprehensive multi-purpose framework combining AI chatbot capabilities with production-grade Android rooting tools and live bot integration.
+
+## Table of Contents
+- [🚀 Features](#-features)
+- [📋 Quick Start](#-quick-start)
+- [🏗️ Project Structure](#️-project-structure)
+- [🔧 Android Rooting Features](#-android-rooting-features)
+- [🤖 AI Chatbot Interfaces](#-ai-chatbot-interfaces)
+- [📚 Documentation](#-documentation)
+- [🛠️ Installation](#️-installation)
+- [🚨 Usage Examples](#-usage-examples)
+- [🔒 Security & Legal](#-security--legal)
+- [🤝 Contributing](#-contributing)
+- [📊 Project Stats](#-project-stats)
+- [🙏 Acknowledgments](#-acknowledgments)
+- [📄 License](#-license)
+- [References](#references)
 
 ## 🚀 Features
 
-### 👾 Agentic Rooting System (The "Agentic-Matrix")
-An autonomous, multi-agent system designed to achieve root access on Android devices with minimal human intervention.
-- **Sriracha Army Architecture**: A hierarchical agent system featuring a `Commander` manager and specialized `Soldier` bots.
-- **The Agentic Wheel**: An automated rooting process that continuously adapts and mutates its strategy. It cycles through tens of thousands of tool and parameter combinations until it finds a successful exploit chain.
-- **Living Code**: Capable of self-mutation and adaptation to overcome obstacles.
-- **Advanced Reconnaissance**: Utilizes tools like `nmap`, `tshark`, and `hydra` for network analysis and vulnerability scanning.
-- **Privilege Escalation**: Employs a variety of techniques to gain root access.
-- **Termux Native**: Optimized for deployment on Android 10+ via Termux.
-
-### 📱 Legacy Android Rooting Framework
+### 📱 Android Rooting Framework
 Production-grade Android 13 ARM64 tablet rooting system with:
 - **Root Detection & Completion**: Multi-method detection and Magisk integration
 - **Live Bot Framework**: Real-time error handling and adaptive recovery
 - **GitHub Integration**: Live code updates and collaborative development
 - **Comprehensive Logging**: Full audit trail with compliance features
+- **Termux Compatibility**: Native support for Android 10+ environments
 
 ### 🤖 AI Chatbot Mastery
 Small custom AI assistants with Gradio_client and Streamlit:
@@ -29,18 +38,17 @@ Small custom AI assistants with Gradio_client and Streamlit:
 
 ## 📋 Quick Start
 
-### Agentic Rooting System
+### Android Rooting (New!)
 
 ```bash
-# Clone the repository
-git clone https://github.com/serverhustled-web/VARIABOT.git
-cd VARIABOT
+# Install and run in Termux
+curl -sSL https://raw.githubusercontent.com/spiralgang/VARIABOT/main/android_rooting/scripts/termux_setup.sh | bash
 
-# Install dependencies
-pip install -r requirements.txt
+# Check root status
+root-status
 
-# Launch the Sriracha Army
-python -m android_rooting.bots.sriracha_army
+# Complete rooting process
+android-root
 ```
 
 ### AI Chatbots
@@ -65,18 +73,16 @@ streamlit run st-Qwen1.5-110B-Chat.py
 
 ```
 VARIABOT/
-├── android_rooting/
-│   ├── bots/
-│   │   ├── sriracha_army.py      # Commander agent
-│   │   ├── root_wheel_bot.py     # Soldier bot
-│   │   └── utils.py              # Agent utilities
-│   ├── core/
-│   ├── scripts/
-│   └── docs/
-├── Qwen110BChat.py
-├── st-*.py
-├── requirements.txt
-└── README.md
+├── android_rooting/           # 🆕 Android rooting framework
+│   ├── core/                  # Root detection and Magisk management
+│   ├── bots/                  # Live bot framework
+│   ├── utils/                 # Utility modules
+│   ├── scripts/               # Executable scripts
+│   └── docs/                  # Comprehensive documentation
+├── Qwen110BChat.py           # Terminal AI interface
+├── st-*.py                   # Streamlit web interfaces
+├── requirements.txt          # Python dependencies
+└── README.md                 # This file
 ```
 
 ## 🔧 Android Rooting Features
@@ -135,16 +141,16 @@ VARIABOT/
 ## 🛠️ Installation
 
 ### Prerequisites
-- **For Agentic Rooting**: Termux on Android 10+, ARM64 device
+- **For Android Rooting**: Termux on Android 10+, ARM64 device
 - **For AI Chatbots**: Python 3.7+, pip, internet connection
 
 ### Android Rooting Setup
 ```bash
 # Automated setup (recommended)
-curl -sSL https://raw.githubusercontent.com/serverhustled-web/VARIABOT/main/android_rooting/scripts/termux_setup.sh | bash
+curl -sSL https://raw.githubusercontent.com/spiralgang/VARIABOT/main/android_rooting/scripts/termux_setup.sh | bash
 
 # Manual setup
-git clone https://github.com/serverhustled-web/VARIABOT.git
+git clone https://github.com/spiralgang/VARIABOT.git
 cd VARIABOT/android_rooting
 ./scripts/termux_setup.sh
 ```
@@ -152,7 +158,7 @@ cd VARIABOT/android_rooting
 ### AI Chatbot Setup
 ```bash
 # Clone repository
-git clone https://github.com/serverhustled-web/VARIABOT.git
+git clone https://github.com/spiralgang/VARIABOT.git
 cd VARIABOT
 
 # Install dependencies
@@ -164,13 +170,7 @@ pip install -r requirements.txt
 
 ## 🚨 Usage Examples
 
-### Agentic Rooting
-```bash
-# Launch the Sriracha Army
-python -m android_rooting.bots.sriracha_army
-```
-
-### Legacy Android Rooting
+### Android Rooting
 ```bash
 # Check current root status
 root-detect --json
@@ -179,7 +179,7 @@ root-detect --json
 error-bot --daemon
 
 # Complete rooting process
-android_root --enable-bot
+android-root --enable-bot
 
 # Manage Magisk modules
 magisk-manage modules list
@@ -207,6 +207,7 @@ streamlit run st-Openelm-3B.py
 - May violate terms of service
 - Use only on devices you own
 - For educational/authorized testing only
+- For detailed exploit payloads and rooting procedures, see the [Linux, Kali, and Android Standards](reference_vault/linux_kali_android.md) document in the reference vault.
 
 ### AI Chatbots
 - Requires HuggingFace API tokens
@@ -219,7 +220,7 @@ streamlit run st-Openelm-3B.py
 ### Development
 ```bash
 # Fork the repository
-git clone https://github.com/serverhustled-web/VARIABOT.git
+git clone https://github.com/your-fork/VARIABOT.git
 
 # Create feature branch
 git checkout -b feature/new-feature
@@ -242,7 +243,6 @@ python test_chatbots.py        # For AI interfaces
 
 | Component | Status | Tests | Coverage |
 |-----------|---------|-------|----------|
-| Agentic Rooting | 🚧 Experimental | ⚠️ None | 0% |
 | Android Rooting | ✅ Production | ✅ | 85% |
 | AI Chatbots | ✅ Stable | ⚠️ Partial | 60% |
 | Documentation | ✅ Complete | N/A | N/A |
@@ -269,3 +269,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Multi-Purpose Framework** | **Production Ready** | **Android 10+ Compatible** | **AI-Powered**
+
+## References
+- Internal: /reference_vault/PRODUCTION_GRADE_STANDARDS.md
+- Internal: /reference_vault/linux_kali_android.md
+- Internal: /reference_vault/ORGANIZATION_STANDARDS.md
+- External: Magisk Guide — https://topjohnwu.github.io/Magisk/install.html
+- External: Kali NetHunter Guide — https://www.kali.org/docs/nethunter/installing-nethunter/
