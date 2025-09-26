@@ -28,7 +28,7 @@ fi
 
 mkdir -p "$LOG_DIR" "$TMP_DIR"
 LOG_FILE="${LOG_DIR}/finalize_root_$(date +%Y%m%d_%H%M%S).log"
-TRACE_ID=$(uuidgen 2>/dev/null || echo "trace-$$-$(date +%s)")
+TRACE_ID=$(uuidgen 2>/dev/null || echo "trace-$$-$(date +%s%N)-$RANDOM")
 
 # Colors for output
 RED='\033[0;31m'
