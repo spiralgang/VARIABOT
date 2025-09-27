@@ -450,7 +450,7 @@ verify_root_completion() {
     fi
     
     # Test file system write access
-    local test_file="/system/.root_test_$"
+    local test_file="/system/.root_test_$$"
     if touch "$test_file" 2>/dev/null; then
         rm -f "$test_file" 2>/dev/null
         log_info "verify_root" "system_writable" "Root verification: System write access working"
