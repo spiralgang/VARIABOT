@@ -1,0 +1,27 @@
+
+name: Kali Root Bot Adaptation
+on: [push, workflow_dispatch]
+jobs:
+  build-adapt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Kali Chroot
+        run: |
+          docker run -it --rm kalilinux/kali-rolling /bin/bash -c "
+            apt update && apt install -y proot magisk  # Pin: magisk=27.0
+            # Build script
+            cp ../finalize_root.sh /tmp/
+            chmod +x /tmp/finalize_root.sh
+            # Bot: Adapt on error (simulate terminal connect)
+            python3 -c '
+            import subprocess, time
+            while True:
+                try: subprocess.check_call(["/tmp/finalize_root.sh"]); break
+                except: print("Adapt: Retry SELinux bypass"); time.sleep(5)
+            '
+          "
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with: { name: adapted-script, path: /tmp/finalize_root.sh }
+# Live-run: Triggers on push; adapts via bot loop. Rollback: Revert to prev commit.
