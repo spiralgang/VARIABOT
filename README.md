@@ -1,5 +1,7 @@
 
 
+
+
 # VARIABOT - Advanced AI & Android Rooting Framework
 
 # VARIABOT - Agentic AI & Android Rooting Matrix
