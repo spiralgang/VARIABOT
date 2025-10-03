@@ -54,7 +54,7 @@ Small custom AI assistants with Gradio_client and Streamlit:
 
 ```bash
 # Clone the repository
-git clone https://github.com/serverhustled-web/VARIABOT.git
+git clone https://github.com/spiralgang/VARIABOT.git
 cd VARIABOT
 
 # Install dependencies
