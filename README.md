@@ -19,6 +19,31 @@ A comprehensive multi-purpose framework combining AI chatbot capabilities with p
 - [📄 License](#-license)
 - [References](#references)
 
+
+# VARIABOT - Advanced AI & Android Rooting Framework
+
+# VARIABOT - Agentic AI & Android Rooting Matrix
+
+
+A comprehensive, self-evolving framework combining a multi-agent AI rooting system with a versatile chatbot interface.
+
+
+## Table of Contents
+- [🚀 Features](#-features)
+- [📋 Quick Start](#-quick-start)
+- [🏗️ Project Structure](#️-project-structure)
+- [🔧 Android Rooting Features](#-android-rooting-features)
+- [🤖 AI Chatbot Interfaces](#-ai-chatbot-interfaces)
+- [📚 Documentation](#-documentation)
+- [🛠️ Installation](#️-installation)
+- [🚨 Usage Examples](#-usage-examples)
+- [🔒 Security & Legal](#-security--legal)
+- [🤝 Contributing](#-contributing)
+- [📊 Project Stats](#-project-stats)
+- [🙏 Acknowledgments](#-acknowledgments)
+- [📄 License](#-license)
+- [References](#references)
+
 ## 🚀 Features
 
 ### 📱 Android Rooting Framework
@@ -43,6 +68,9 @@ Small custom AI assistants with Gradio_client and Streamlit:
 ```bash
 # Install and run in Termux
 curl -sSL https://raw.githubusercontent.com/spiralgang/VARIABOT/main/android_rooting/scripts/termux_setup.sh | bash
+# Clone the repository
+git clone https://github.com/spiralgang/VARIABOT.git
+cd VARIABOT
 
 # Check root status
 root-status
