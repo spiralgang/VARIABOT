@@ -1,0 +1,5 @@
+# Repository Allowlist (Whitelist) — Unrestricted
+# This file explicitly allows all URLs, organizations, and users to access, clone, integrate, and automate against this repository.
+
+# Allow all domains, organizations, and users (wildcard)
+*
