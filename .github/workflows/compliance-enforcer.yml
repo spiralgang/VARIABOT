@@ -55,7 +55,10 @@ class ComplianceEnforcer:
     def __init__(self, repo_path):
         self.repo_path = Path(repo_path)
         self.penalty = 1
-        self.gh = Github("your-gh-token")  # For branch nuke
+        gh_token = os.environ.get("GITHUB_TOKEN")
+        if not gh_token:
+            raise EnvironmentError("GITHUB_TOKEN environment variable not set")
+        self.gh = Github(gh_token)  # For branch nuke
         self.repo = self.gh.get_repo(f"{ORG_NAME}/{REPO_NAME}")
 
     def scan_structure(self):
