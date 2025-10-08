@@ -96,9 +96,15 @@ class ComplianceEnforcer:
                 violations.append(f"Symlink detected: {file_path} - DELETING")
                 file_path.unlink()  # Rogue kill
             # Poison pill: Check for suspicious exec
-            if file_path.suffix in ['.sh', '.py'] and 'rm -rf /' in file_path.read_text():
-                violations.append(f"Poison pill in {file_path} - QUARANTINE")
-                file_path.rename(file_path.with_suffix('.quarantine'))
+            if file_path.suffix in ['.sh', '.py']:
+                try:
+                    file_content = file_path.read_text()
+                except (UnicodeDecodeError, OSError) as e:
+                    logging.warning(f"Could not read {file_path}: {e}")
+                    continue
+                if 'rm -rf /' in file_content:
+                    violations.append(f"Poison pill in {file_path} - QUARANTINE")
+                    file_path.rename(file_path.with_suffix('.quarantine'))
         return violations
 
     def enforce_penalty(self, violations):
