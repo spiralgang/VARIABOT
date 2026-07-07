@@ -1,0 +1,160 @@
+name: GLM Coder
+
+on:
+  pull_request:
+    branches: ["main", "develop"]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      strategy:
+        description: 'Context Strategy (minimal/balanced/full)'
+        required: false
+        default: 'balanced'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  context-preparation:
+    runs-on: ubuntu-latest
+    outputs:
+      bundle_path: ${{ steps.gen.outputs.bundle_path }}
+      summary: ${{ steps.gen.outputs.summary }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Need HEAD~1 for diff
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate Context Bundle
+        id: gen
+        run: |
+          python .github/scripts/context_engine.py ${{ github.event.inputs.strategy || 'balanced' }}
+          echo "bundle_path=.github/context-bundle.json" >> $GITHUB_OUTPUT
+          cat .github/context-bundle.json | jq '.metadata' > summary.json
+          echo "summary=$(cat summary.json)" >> $GITHUB_OUTPUT
+
+      - name: Upload Bundle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-bundle
+          path: .github/context-bundle.json
+          retention-days: 1
+
+  multi-ai-review:
+    needs: context-preparation
+    runs-on: ubuntu-latest
+    continue-on-error: true # Don't block PR if AI fails
+    strategy:
+      matrix:
+        provider: [openrouter, huggingface, github_models, nvidia, qwen, kimi]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Dependencies
+        run: pip install requests
+      
+      - name: Download Context Bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: context-bundle
+          path: .github/
+
+      - name: Run AI Gateway (${{ matrix.provider }})
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          HF_API_KEY: ${{ secrets.HF_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        run: |
+          # Pass specific provider to script to focus execution
+          python .github/scripts/ai_gateway.py .github/context-bundle.json --provider ${{ matrix.provider }}
+          # Note: Script needs update to accept --provider flag, currently runs all. 
+          # For now, it generates a combined report which we filter in aggregation.
+
+      - name: Upload Review Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-reviews-${{ matrix.provider }}
+          path: .github/ai-reviews.json
+          retention-days: 5
+
+  aggregate-and-comment:
+    needs: [context-preparation, multi-ai-review]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download All Reviews
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ai-reviews-*
+          merge-multiple: true
+          path: .github/reviews/
+
+      - name: Aggregate Reviews & Comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            let allReviews = {};
+            const reviewDir = '.github/reviews';
+            
+            if (fs.existsSync(reviewDir)) {
+              const files = fs.readdirSync(reviewDir);
+              for (const file of files) {
+                if (file.endsWith('.json')) {
+                  try {
+                    const content = JSON.parse(fs.readFileSync(path.join(reviewDir, file), 'utf8'));
+                    allReviews[file] = content;
+                  } catch (e) {
+                    console.error(`Failed to parse ${file}: ${e}`);
+                  }
+                }
+              }
+            }
+
+            // Construct Comment
+            let body = "### 🤖 Multi-AI Code Review Report\n\n";
+            body += `**Context Strategy:** ${{ needs.context-preparation.outputs.summary }}\n\n`;
+            
+            for (const [source, data] of Object.entries(allReviews)) {
+              body += `#### ${source}\n`;
+              for (const [provider, result] of Object.entries(data)) {
+                const status = result.status === 'success' ? '✅' : (result.status === 'skipped' ? '⚠️' : '❌');
+                body += `${status} **${provider}**: ${result.status}\n`;
+                if (result.data && result.data.choices && result.data.choices[0]) {
+                   // Attempt to extract message if standard format
+                   const msg = result.data.choices[0].message?.content || JSON.stringify(result.data).substring(0, 200);
+                   body += `<details><summary>View Response</summary>\n\n\`\`\`\n${msg}\n\`\`\`\n</details>\n`;
+                }
+              }
+              body += "\n---\n";
+            }
+
+            if (Object.keys(allReviews).length === 0) {
+              body += "*No AI reviews generated. Check workflow logs for API key or configuration errors.*\n";
+            } else {
+              body += "\n*Generated by GLM Coder Companion with Universal AI Gateway*";
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
