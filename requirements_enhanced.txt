@@ -34,7 +34,7 @@ soundfile>=0.12.0
 
 # Database and storage
 sqlite3
-sqlalchemy>=2.0.0
+sqlalchemy>=2.0.49
 redis>=5.0.0
 pymongo>=4.5.0
 
