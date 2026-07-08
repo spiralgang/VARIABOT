@@ -1,7 +1,7 @@
 # VARIABOT: Minimal Python dependencies
 python>=3.9
 gradio>=3.0.0
-streamlit>=1.7.0
+streamlit>=1.59.0
 PyGithub>=1.55
 requests>=2.28.0
 huggingface_hub>=0.17.0
