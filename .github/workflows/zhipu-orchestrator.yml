@@ -1,0 +1,100 @@
+# =============================================================================
+# zhipu-orchestrator.yml  — International AI Orchestration System
+# -----------------------------------------------------------------------------
+# SOURCE: ~/dev/zhipu-bigmodel-android10-apk/README.md + INTERNATIONAL_AI_README.md
+#   (20+ AI providers, real-time translation pipeline, cultural context, geo
+#   routing, compliance GDPR/China/export-control, failover).
+#
+# AGENTIC BEHAVIOR:
+#   * Calls the REAL LLM to pick the BEST provider + translate a user prompt into
+#     a target language with cultural context (mirrors the orchestration system).
+#   * Validates the chosen provider against the compliance matrix (GDPR/China/
+#     export-control) before "routing".
+#   * On simulated failure, performs failover to the next regional provider.
+#   * Returns a structured routing decision (provider, language, translated prompt).
+#   * Uses ${{ secrets.ZHIPU_API_KEY }} for the GLM leg; never inlines keys.
+# =============================================================================
+name: "Zhipu ▸ International AI Orchestrator"
+on:
+  workflow_dispatch:
+    inputs:
+      user_prompt:
+        description: "Prompt to route + translate"
+        required: false
+        type: string
+        default: "Explain this product to a new user."
+      target_lang:
+        description: "Target language (e.g. zh, ja, ko, ru, he, fr)"
+        required: false
+        type: string
+        default: "zh"
+      region:
+        description: "User region (eu, cn, us, kr, jp, ru, il)"
+        required: false
+        type: string
+        default: "eu"
+
+permissions:
+  contents: read
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Fail if no Zhipu key"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.ZHIPU_API_KEY }}" ]; then
+            echo "::error::ZHIPU_API_KEY required for orchestrator"; exit 1
+          fi
+
+      - name: "Real LLM: route + translate with cultural context"
+        id: route
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are the International AI Orchestrator. Choose a provider compliant with the user's region and translate the prompt with cultural context. Output strict JSON."
+          temperature: "0.3"
+          max_tokens: "1200"
+          prompt: |
+            User region: ${{ inputs.region }}
+            Target language: ${{ inputs.target_lang }}
+            User prompt: ${{ inputs.user_prompt }}
+
+            Compliance rules:
+            - region=eu -> provider must be GDPR-compliant
+            - region=cn -> use a China-compliant provider (e.g. Zhipu/GLM, ERNIE, Qianwen)
+            - region=us -> respect export-control
+            Return JSON:
+            {
+              "provider": "<name>",
+              "compliant": true/false,
+              "translated_prompt": "<prompt in target language, culturally adapted>",
+              "notes": "<one line>"
+            }
+
+      - name: "Enforce compliance + failover"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, re, sys
+          raw='''${{ steps.route.outputs.completion }}'''
+          m=re.search(r'\{.*\}', raw, re.DOTALL)
+          if not m:
+              print("::error::no JSON from orchestrator"); sys.exit(1)
+          obj=json.loads(m.group(0))
+          print("provider:", obj.get("provider"), "compliant:", obj.get("compliant"))
+          if not obj.get("compliant", False):
+              print("::warning::chosen provider not compliant for region; failing over to regional default")
+              # failover: pick a safe default per region
+              region="${{ inputs.region }}"
+              default={"eu":"Cohere","cn":"Zhipu GLM","us":"OpenAI","kr":"HyperCLOVA X","jp":"Rinna","ru":"Yandex GPT","il":"AI21"}[region]
+              print("FAILOVER ->", default)
+          else:
+              print("routed + translated OK")
+          PY

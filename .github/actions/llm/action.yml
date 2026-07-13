@@ -1,0 +1,131 @@
+# =============================================================================
+# Composite action: real LLM call (OpenAI-compatible, no mock)
+# -----------------------------------------------------------------------------
+# Every agentic workflow calls the model through THIS action so the policy
+# "ALWAYS use real LLM/AI calling" is enforced in exactly one place.
+#
+# The action performs a real HTTPS POST to ${{ secrets.LLM_BASE_URL }}/chat/completions
+# using ${{ secrets.LLM_API_KEY }}. If the key is missing the action FAILS loudly
+# (set -euo pipefail + explicit check) — it never silently returns a fake answer.
+#
+# Used by: sdlc-*.yml, aria-*.yml, livingcode-*.yml, hermes-*.yml, and every
+#           md-derived agentic workflow in this repo.
+# =============================================================================
+name: "Real LLM Call"
+description: "Call a real OpenAI-compatible model. Fails if no API key is set."
+inputs:
+  prompt:
+    description: "User prompt sent to the model"
+    required: true
+  system:
+    description: "System prompt"
+    required: false
+    default: "You are an autonomous coding agent. Reason step by step, then act."
+  temperature:
+    description: "Sampling temperature"
+    required: false
+    default: "0.4"
+  max_tokens:
+    description: "Max completion tokens"
+    required: false
+    default: "1500"
+outputs:
+  completion:
+    description: "The raw model completion text"
+    value: ${{ steps.run.outputs.completion }}
+runs:
+  using: "composite"
+  steps:
+    - name: "Resolve config from secrets"
+      id: cfg
+      shell: bash
+      env:
+        SECRET_KEY: ${{ secrets.LLM_API_KEY }}
+        SECRET_BASE: ${{ secrets.LLM_BASE_URL }}
+        SECRET_MODEL: ${{ secrets.LLM_MODEL }}
+      run: |
+        set -euo pipefail
+        if [ -z "${SECRET_KEY}" ]; then
+          echo "::error::LLM_API_KEY secret is not set. Real LLM calls require a key; mocking is forbidden by policy."
+          exit 1
+        fi
+        {
+          echo "key=${SECRET_KEY}"
+          echo "base=${SECRET_BASE:-https://open.bigmodel.cn/api/paas/v4}"
+          echo "model=${SECRET_MODEL:-glm-4-flash}"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: "Write prompt + system to files"
+      id: write
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/llm"
+        cat > "$RUNNER_TEMP/llm/prompt.txt" <<'PROMPT_EOF'
+        ${{ inputs.prompt }}
+        PROMPT_EOF
+        cat > "$RUNNER_TEMP/llm/system.txt" <<'SYSTEM_EOF'
+        ${{ inputs.system }}
+        SYSTEM_EOF
+        echo "wrote prompt + system"
+
+    - name: "Call the model (real request)"
+      id: run
+      shell: bash
+      env:
+        LLM_KEY: ${{ steps.cfg.outputs.key }}
+        LLM_BASE: ${{ steps.cfg.outputs.base }}
+        LLM_MODEL: ${{ steps.cfg.outputs.model }}
+        LLM_TEMP: ${{ inputs.temperature }}
+        LLM_MAX: ${{ inputs.max_tokens }}
+        PROMPT_FILE: ${{ env.RUNNER_TEMP }}/llm/prompt.txt
+        SYSTEM_FILE: ${{ env.RUNNER_TEMP }}/llm/system.txt
+      run: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import json, os, sys, urllib.request, urllib.error
+
+        key = os.environ["LLM_KEY"]
+        base = os.environ["LLM_BASE"].rstrip("/")
+        model = os.environ["LLM_MODEL"]
+        temp = float(os.environ["LLM_TEMP"])
+        maxt = int(os.environ["LLM_MAX"])
+        system = open(os.environ["SYSTEM_FILE"], encoding="utf-8").read().strip()
+        prompt = open(os.environ["PROMPT_FILE"], encoding="utf-8").read()
+
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": temp,
+            "max_tokens": maxt,
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(base + "/chat/completions", data=data, method="POST")
+        req.add_header("Content-Type", "application/json")
+        req.add_header("Authorization", f"Bearer {key}")
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")[:800]
+            print(f"::error::LLM HTTP {e.code}: {detail}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"::error::LLM request failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            text = body["choices"][0]["message"]["content"]
+        except Exception:
+            print(f"::error::Unexpected LLM response: {json.dumps(body)[:800]}", file=sys.stderr)
+            sys.exit(1)
+
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+            fh.write("completion<<LLM_EOF\n")
+            fh.write(text)
+            fh.write("\nLLM_EOF\n")
+        print("LLM call succeeded; completion length =", len(text))
+        PY

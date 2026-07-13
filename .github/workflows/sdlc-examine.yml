@@ -1,0 +1,172 @@
+# =============================================================================
+# sdlc-examine.yml  — STAGE 1 of the self-driving SDLC loop
+# -----------------------------------------------------------------------------
+# LOOP: examine -> plan -> build -> review -> fix -> approve -> (repeat)
+# CONTROL SURFACE: fsm/specs/PLANS.md (state 'examine'), AGENT_INSTRUCTIONS.md
+#                  (## examine behavior), VAULT.md (knowledge).
+#
+# AGENTIC BEHAVIOR:
+#   * Calls the REAL LLM to survey the repo and choose an open task issue that is
+#     labeled `agent-task` (or falls back to creating one from the repo TODOs).
+#   * Writes a structured dispatch.json consumed by the next stage (plan).
+#   * Loops back here from approve once cycle < max_cycles (see sdlc-approve.yml).
+#   * Never merges, never writes code — it only decides WHAT to do next.
+# =============================================================================
+name: "SDLC ▸ examine"
+on:
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: "SDLC cycle counter"
+        required: false
+        type: string
+        default: "0"
+      issue_number:
+        description: "Explicit issue to work on (optional)"
+        required: false
+        type: string
+        default: ""
+  repository_dispatch:
+    types: [sdlc-examine]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: write
+
+concurrency:
+  group: sdlc-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  examine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Gather repo facts for the model"
+        id: facts
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "branch=$(git default-branch 2>/dev/null || echo main)" >> "$GITHUB_OUTPUT"
+          {
+            echo "tree<<TREE_EOF"
+            # top-level layout + language signals, bounded
+            find . -maxdepth 2 -not -path '*/.git/*' -type f \
+              | sed 's#^\./##' | grep -vE 'node_modules|dist|build' | head -120
+            echo "TREE_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "open_issues<<ISSUES_EOF"
+          gh issue list --label agent-task --state open --limit 20 --json number,title,body \
+            | head -c 4000 || echo "none"
+          echo "ISSUES_EOF"
+
+      - name: "Real LLM: decide the next task"
+        id: decide
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are the EXAMINE stage of an autonomous SDLC agent running on GitHub Actions. You pick a concrete, safe task and output strict JSON."
+          temperature: "0.2"
+          max_tokens: "1200"
+          prompt: |
+            Repository file tree (bounded):
+            ${{ steps.facts.outputs.tree }}
+
+            Open issues labeled 'agent-task':
+            ${{ steps.facts.outputs.open_issues }}
+
+            Choose the NEXT task to implement. Rules:
+            - Prefer an existing open issue; if none, propose a small, safe repo improvement.
+            - Never pick anything that touches secrets, CI credentials, or force-pushes.
+            - Keep the change to ONE small, reviewable unit of work.
+
+            Reply with ONLY a JSON object (no markdown fences):
+            {
+              "issue_number": <int or 0 if you invented one>,
+              "title": "<short title>",
+              "summary": "<3-5 line plan in plain English>",
+              "branch": "agent/<slug>",
+              "files": ["path/one", "path/two"],
+              "risk": "low"
+            }
+
+      - name: "Parse LLM decision safely"
+        id: parse
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, sys
+          raw = '''${{ steps.decide.outputs.completion }}'''
+          # strip code fences if the model added them
+          m = re.search(r'\{.*\}', raw, re.DOTALL)
+          if not m:
+              print("::error::model did not return JSON"); sys.exit(1)
+          try:
+              obj = json.loads(m.group(0))
+          except Exception as e:
+              print("::error::invalid JSON from model:", e); sys.exit(1)
+          num = int(obj.get("issue_number", 0))
+          branch = obj.get("branch", "agent/task")
+          title = obj.get("title", "agent task")[:120]
+          summary = obj.get("summary", "")[:2000]
+          files = obj.get("files", [])[:20]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as gh:
+              gh.write(f"issue_number={num}\n")
+              gh.write(f"branch={branch}\n")
+              gh.write(f"title={title}\n")
+              gh.write(f"summary<<S_EOF\n{summary}\nS_EOF\n")
+              gh.write(f"files={','.join(files)}\n")
+          # persist for the next stage
+          with open("dispatch.json", "w") as f:
+              json.dump({"cycle": int("${{ inputs.cycle }}"), "issue_number": num,
+                         "branch": branch, "title": title, "summary": summary,
+                         "files": files, "stage": "examine"}, f, indent=2)
+          print("parsed decision:", branch, title)
+          PY
+
+      - name: "Create tracking issue if the model invented one"
+        if: ${{ steps.parse.outputs.issue_number == '0' }}
+        id: create
+        shell: bash
+        run: |
+          set -euo pipefail
+          NUM=$(gh issue create \
+            --title "agent: ${{ steps.parse.outputs.title }}" \
+            --label agent-task \
+            --body "${{ steps.parse.outputs.summary }}" \
+            --json number --jq '.number')
+          echo "created_issue=$NUM" >> "$GITHUB_OUTPUT"
+          # rewrite dispatch with the real number
+          python3 - <<PY
+          import json
+          d = json.load(open("dispatch.json"))
+          d["issue_number"] = int("$NUM")
+          json.dump(d, open("dispatch.json","w"), indent=2)
+          PY
+
+      - name: "Upload dispatch for next stage"
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdlc-dispatch
+          path: dispatch.json
+          if-no-files-found: error
+
+      - name: "Hand off to plan stage (real dispatch)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          ISSUE=$(python3 -c "import json;print(json.load(open('dispatch.json'))['issue_number'])")
+          echo "Chaining to sdlc-plan for issue #$ISSUE"
+          gh workflow run sdlc-plan.yml \
+            -f issue_number="$ISSUE" \
+            -f branch="$(python3 -c "import json;print(json.load(open('dispatch.json'))['branch'])")" \
+            -f cycle="${{ inputs.cycle }}"

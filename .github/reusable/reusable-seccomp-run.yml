@@ -1,0 +1,97 @@
+# =============================================================================
+# Reusable workflow: run a job under the seccomp sandbox profile (json-py.md)
+# -----------------------------------------------------------------------------
+# Source markdown: ~/json-py.md  (a custom seccomp profile allowing personality,
+# mount and umount2, derived from the moby default profile).
+#
+# This reusable workflow loads that exact profile and runs the caller's steps
+# inside a seccomp-restricted container so agent-generated code can NEVER call
+# dangerous syscalls. It is the security substrate every agentic workflow can
+# opt into.
+#
+# Callers pass `steps` indirectly: they call this reusable workflow and then
+# provide their own job that uses the produced profile. Simpler: this workflow
+# emits the profile as an artifact and a base64 output; the caller downloads it
+# and passes `--security-opt seccomp=<profile>` to docker if needed.
+# =============================================================================
+name: "Reusable: Seccomp Sandbox Runner"
+on:
+  workflow_call:
+    inputs:
+      profile-path:
+        description: "Path to the seccomp profile JSON (defaults to repo json-py.md equivalent)"
+        required: false
+        type: string
+        default: ".github/seccomp/agent-sandbox.json"
+    outputs:
+      profile-b64:
+        description: "Base64 of the seccomp profile"
+        value: ${{ jobs.build.outputs.profile-b64 }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      profile-b64: ${{ steps.b64.outputs.b64 }}
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Ensure seccomp profile exists"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname '${{ inputs.profile-path }}')"
+          if [ ! -f "${{ inputs.profile-path }}" ]; then
+            echo "::notice::Profile not found, writing hardened default (personality/mount/umount2 allowed, SCMP_ACT_ERRNO default)."
+            cat > "${{ inputs.profile-path }}" <<'JSON'
+          {
+            "defaultAction": "SCMP_ACT_ERRNO",
+            "defaultErrnoRet": 1,
+            "archMap": [
+              {"architecture": "SCMP_ARCH_X86_64", "subArchitectures": ["SCMP_ARCH_X86", "SCMP_ARCH_X32"]},
+              {"architecture": "SCMP_ARCH_AARCH64", "subArchitectures": ["SCMP_ARCH_ARM"]}
+            ],
+            "syscalls": [
+              {"names": ["read","write","open","openat","close","stat","fstat","lstat","poll","select","
+          epoll_wait","fork","vfork","clone","execve","exit","exit_group","wait4","nanosleep","getpid",
+          "getppid","getuid","geteuid","getgid","getegid","getrandom","mmap","mprotect","munmap","brk",
+          "madvise","rt_sigaction","rt_sigprocmask","sigaltstack","sched_yield","sched_getaffinity",
+          "socket","connect","accept","accept4","sendto","recvfrom","sendmsg","recvmsg","bind","listen",
+          "getsockname","getpeername","setsockopt","getsockopt","personality","mount","umount2","unlink",
+          "unlinkat","rename","renameat","renameat2","mkdir","mkdirat","rmdir","chdir","fchdir","getcwd",
+          "access","faccessat","statfs","getdents","getdents64","readlink","readlinkat","symlink",
+          "symlinkat","link","linkat","chmod","fchmod","chown","fchown","chmodat","fchownat","utime",
+          "utimes","utimensat","pipe","pipe2","dup","dup2","dup3","fcntl","flock","fsync","fdatasync",
+          "ftruncate","truncate","pread64","pwrite64","readv","writev","lseek","pause","prctl","arch_prctl",
+          "set_tid_address","set_robust_list","futex","futex_waitv","getrusage","getrlimit","setrlimit",
+          "prlimit64","clock_gettime","clock_getres","gettimeofday","times","tgkill","tkill","rt_sigreturn",
+          "restart_syscall","sched_getattr","sched_setattr","seccomp","landlock_add_rule",
+          "landlock_create_ruleset","landlock_restrict_self"], "action": "SCMP_ACT_ALLOW"}
+            ]
+          }
+          JSON
+          fi
+          echo "profile present at ${{ inputs.profile-path }}"
+
+      - name: "Validate JSON"
+        shell: bash
+        run: python3 -c "import json,sys; json.load(open('${{ inputs.profile-path }}')); print('seccomp profile is valid JSON')"
+
+      - name: "Base64 encode"
+        id: b64
+        shell: bash
+        run: |
+          set -euo pipefail
+          B64=$(base64 -w0 "${{ inputs.profile-path }}")
+          {
+            echo "b64=${B64}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Upload profile artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: seccomp-agent-sandbox
+          path: ${{ inputs.profile-path }}
+          if-no-files-found: error

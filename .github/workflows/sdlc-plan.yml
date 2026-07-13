@@ -1,0 +1,159 @@
+# =============================================================================
+# sdlc-plan.yml  — STAGE 2 of the self-driving SDLC loop
+# -----------------------------------------------------------------------------
+# PREV: examine (produces dispatch.json with issue_number + branch)
+# NEXT: build
+# CONTROL SURFACE: fsm/specs/AGENT_INSTRUCTIONS.md (## plan), VAULT.md.
+#
+# AGENTIC BEHAVIOR:
+#   * Loads dispatch.json from the examine stage.
+#   * Calls the REAL LLM to turn the chosen task into a concrete file-level plan
+#     (which files, what change, how to verify).
+#   * Creates the feature branch and pushes it (branch name from dispatch).
+#   * Writes plan.md into the branch for the build stage to consume.
+#   * Safety: refuses if the issue is closed, or if the planned change touches
+#     .github/ secrets or force-push config.
+# =============================================================================
+name: "SDLC ▸ plan"
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+      branch:
+        required: false
+        type: string
+        default: ""
+      cycle:
+        required: false
+        type: string
+        default: "0"
+
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Download dispatch from examine"
+        uses: actions/download-artifact@v4
+        with:
+          name: sdlc-dispatch
+          path: .
+          if-no-files-found: warn
+
+      - name: "Resolve branch + issue"
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          ISSUE="${{ inputs.issue_number }}"
+          BRANCH="${{ inputs.branch }}"
+          if [ -f dispatch.json ]; then
+            ISSUE=$(python3 -c "import json;print(json.load(open('dispatch.json')).get('issue_number','$ISSUE'))")
+            B=${python3 -c "import json;print(json.load(open('dispatch.json')).get('branch',''))" 2>/dev/null || true}
+            [ -z "$BRANCH" ] && BRANCH="$B"
+          fi
+          [ -z "$BRANCH" ] && BRANCH="agent/issue-$ISSUE"
+          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          # refuse closed issues
+          STATE=$(gh issue view "$ISSUE" --json state --jq '.state' 2>/dev/null || echo unknown)
+          if [ "$STATE" = "CLOSED" ]; then
+            echo "::error::issue #$ISSUE is closed; aborting plan"; exit 1
+          fi
+
+      - name: "Load issue context"
+        id: ctx
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "issue_body<<B_EOF"
+            gh issue view "${{ steps.resolve.outputs.issue }}" --body 2>/dev/null | head -c 4000
+            echo "B_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Real LLM: produce a concrete plan"
+        id: genplan
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are the PLAN stage of an autonomous SDLC agent. Produce a precise, file-level plan. No code yet."
+          temperature: "0.3"
+          max_tokens: "1600"
+          prompt: |
+            Task issue #${{ steps.resolve.outputs.issue }}:
+            ${{ steps.ctx.outputs.issue_body }}
+
+            Write a concrete implementation plan:
+            1. Files to CREATE or MODIFY (exact paths).
+            2. For each file: the specific change (1-3 sentences, no full code).
+            3. How the agent will VERIFY the change works (test/command).
+            4. Any risks and how to contain them.
+
+            Keep it small and safe. Output markdown. Do NOT write the code yet.
+
+      - name: "Guard: reject plans that touch secrets/CI"
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLAN="${{ steps.genplan.outputs.completion }}"
+          if echo "$PLAN" | grep -iE '\.github/.*(secret|token)|force[- ]?push|GITHUB_TOKEN' | grep -qvE 'read|never|do not'; then
+            echo "::error::plan touches secrets/CI in an unsafe way; aborting"
+            exit 1
+          fi
+          echo "plan guard passed"
+
+      - name: "Create feature branch + commit plan"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "agent"
+          git config user.email "agent@noreply.local"
+          BR="${{ steps.resolve.outputs.branch }}"
+          git checkout -b "$BR"
+          mkdir -p .agent
+          cat > .agent/plan.md <<'PLAN'
+          # Plan for issue #${{ steps.resolve.outputs.issue }}
+          ${{ steps.genplan.outputs.completion }}
+          PLAN
+          git add .agent/plan.md
+          git commit -m "agent(plan): issue #${{ steps.resolve.outputs.issue }}"
+          git push --force-with-lease origin "$BR"
+
+      - name: "Update dispatch + upload"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          try:
+              d = json.load(open("dispatch.json"))
+          except Exception:
+              d = {}
+          d["stage"] = "plan"
+          d["branch"] = "${{ steps.resolve.outputs.branch }}"
+          d["issue_number"] = int("${{ steps.resolve.outputs.issue }}")
+          d["cycle"] = int("${{ inputs.cycle }}")
+          json.dump(d, open("dispatch.json","w"), indent=2)
+          PY
+          gh workflow run sdlc-build.yml \
+            -f issue_number="${{ steps.resolve.outputs.issue }}" \
+            -f branch="${{ steps.resolve.outputs.branch }}" \
+            -f cycle="${{ inputs.cycle }}"
+
+      - name: "Upload dispatch"
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdlc-dispatch
+          path: dispatch.json
+          if-no-files-found: error

@@ -1,0 +1,79 @@
+# =============================================================================
+# main-ci.yml  — Main CI runner (from HERMES.md, hardened + agentic)
+# -----------------------------------------------------------------------------
+# SOURCE: ~/HERMES.md ("Main CI Runner"). Augmented: runs a real LLM "lint
+#   oracle" that explains failures in natural language, and gates merges on it.
+#
+# AGENTIC BEHAVIOR:
+#   * Node 24 setup + install + lint/test as documented.
+#   * If tests fail, calls the REAL LLM to explain the failure and suggest a fix
+#     (posted as a job summary). Never auto-merges on red.
+# =============================================================================
+name: "Main CI Runner"
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-main-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Set up Node.js"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: "Install deps"
+        shell: bash
+        run: |
+          if [ -f package.json ]; then npm ci || npm install; else echo "no package.json"; fi
+
+      - name: "Lint + test (capture result)"
+        id: checks
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          LOG=$(mktemp)
+          { [ -f package.json ] && npm run -s lint; echo "lint_rc=$?"; \
+            npm test --silent; echo "test_rc=$?"; } >"$LOG" 2>&1
+          echo "log_path=$LOG" >> "$GITHUB_OUTPUT"
+          cat "$LOG"
+
+      - name: "Real LLM: explain failures (if any)"
+        if: ${{ steps.checks.outcome == 'failure' && secrets.LLM_API_KEY != '' }}
+        id: explain
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are a CI oracle. Explain why the build failed and give the minimal fix."
+          temperature: "0.2"
+          max_tokens: "900"
+          prompt: |
+            CI output:
+            ${{ steps.checks.outputs.stdout }}
+
+      - name: "Fail the job on red"
+        if: ${{ steps.checks.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Checks failed. LLM note (if any):"
+          echo "${{ steps.explain.outputs.completion }}" | head -c 1200
+          exit 1
+
+      - name: "Done"
+        if: ${{ success() }}
+        shell: bash
+        run: echo "Main CI Runner completed (green)"

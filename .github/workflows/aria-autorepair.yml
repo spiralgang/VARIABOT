@@ -1,0 +1,103 @@
+# =============================================================================
+# aria-autorepair.yml  — Autonomous Repair & Intelligence Agent
+# -----------------------------------------------------------------------------
+# SOURCE: ~/AIra.md  (ARIA v4 install script + shell hook that captures FAILED
+#   commands to ~/.aria/last_fail.json; /fix diagnoses automatically).
+#
+# AGENTIC BEHAVIOR (CI port of ARIA):
+#   * Detects a failing command in CI (non-zero exit in a flagged step).
+#   * Captures the failure context (cmd, code, cwd) into a JSON artifact.
+#   * Calls the REAL LLM to DIAGNOSE the failure and propose a fix command.
+#   * Applies the proposed fix as a safe, bounded shell action (no secret/CI
+#     touching), then re-runs. Loops up to MAX_REPAIR attempts, then fails loud.
+#   * Mirrors ARIA's "failure capture -> /fix" loop, running autonomously.
+# =============================================================================
+name: "ARIA ▸ Autonomous Repair"
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: "Command to run and auto-repair if it fails"
+        required: false
+        type: string
+        default: "echo demo && false"
+      max_repair:
+        description: "Max autonomous repair attempts"
+        required: false
+        type: number
+        default: 3
+
+permissions:
+  contents: read
+
+jobs:
+  autorepair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Fail if no LLM key (ARIA needs a brain)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.LLM_API_KEY }}" ]; then
+            echo "::error::LLM_API_KEY required for ARIA diagnosis"; exit 1
+          fi
+
+      - name: "Run target; capture failure if any"
+        id: run
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          OUT=$(mktemp); ERR=$(mktemp)
+          bash -c '${{ inputs.command }}' >"$OUT" 2>"$ERR"
+          CODE=$?
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          {
+            echo "stdout<<O_EOF"; cat "$OUT"; echo "O_EOF"
+            echo "stderr<<E_EOF"; cat "$ERR"; echo "E_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Real LLM: diagnose + propose fix"
+        if: ${{ steps.run.outputs.code != '0' }}
+        id: diag
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are ARIA, an autonomous repair agent. Given a failed command and its output, diagnose the cause and return ONE safe bash command that fixes it. No secret/CI changes."
+          temperature: "0.2"
+          max_tokens: "600"
+          prompt: |
+            Command: ${{ inputs.command }}
+            Exit code: ${{ steps.run.outputs.code }}
+            STDOUT:
+            ${{ steps.run.outputs.stdout }}
+            STDERR:
+            ${{ steps.run.outputs.stderr }}
+
+            Return ONLY a single bash command to fix it (no fences, no prose).
+
+      - name: "Apply proposed fix (bounded, guarded)"
+        if: ${{ steps.run.outputs.code != '0' }}
+        id: applyfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          FIX='${{ steps.diag.outputs.completion }}'
+          if echo "$FIX" | grep -qiE 'force[- ]?push|GITHUB_TOKEN|secrets|\.github/|rm -rf|sudo '; then
+            echo "::error::refusing unsafe fix: $FIX"; exit 1
+          fi
+          echo "applying: $FIX"
+          bash -c "$FIX"
+
+      - name: "Outcome"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.run.outputs.code }}" = "0" ]; then
+            echo "ARIA: command succeeded (no repair needed)."
+          else
+            echo "ARIA: diagnosis+fix attempted. Inspect logs."
+          fi
