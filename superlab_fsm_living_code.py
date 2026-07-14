@@ -235,7 +235,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: "FSM stage: {state}"
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are the {state} stage of an autonomous SDLC agent."
           temperature: "0.3"
