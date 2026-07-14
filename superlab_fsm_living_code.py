@@ -161,8 +161,8 @@ def run_fsm(llm, context: str, max_cycles: int = 1) -> dict:
                         inst = compile_child(m.group(1), llm)
                         LOG.info("compiled child agent at stage %s -> %s", state,
                                  inst.execute({"description": context[:200]}))
-                    except ValueError as e:
-                        LOG.warning("child compile skipped: %s", e)
+                    except Exception as e:
+                        LOG.warning("child compile or execution skipped: %s", e)
     return transcript
 
 
