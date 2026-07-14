@@ -49,12 +49,12 @@ class LLMClient:
         self.model = model or os.getenv("LLM_MODEL", "glm-4-flash")
         self.base_url = (base_url or os.getenv("LLM_BASE_URL",
                         "https://open.bigmodel.cn/api/paas/v4")).rstrip("/")
-        self.api_key = api_key if api_key is not None else os.getenv("LLM_API_KEY", "")
+        self.api_key = api_key if api_key is not None else (os.getenv("LLM_API_KEY") or os.getenv("ZHIPU_API_KEY") or "")
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.timeout = timeout
         if not self.api_key:
-            raise NoLLMKeyError("LLM_API_KEY is not set; mocking is disabled by policy.")
+            raise NoLLMKeyError("Neither LLM_API_KEY nor ZHIPU_API_KEY is set; mocking is disabled by policy.")
 
     def chat(self, messages, *, temperature=None, max_tokens=None) -> str:
         payload = {"model": self.model, "messages": messages,
