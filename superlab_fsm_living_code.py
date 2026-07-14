@@ -121,6 +121,7 @@ def compile_child(src: str, llm) -> object:
     mod.__dict__["__builtins__"] = safe_builtins()
     # expose the real LLM + json to the child namespace (it calls self.llm.chat)
     mod.__dict__["llm"] = llm
+    mod.__dict__["json"] = json
     exec(compile(tree, "<dynamic_child>", "exec"), mod.__dict__)
     cls = mod.__dict__.get("GeneratedAgent")
     if cls is None:
