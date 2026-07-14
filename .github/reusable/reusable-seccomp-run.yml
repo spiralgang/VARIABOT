@@ -54,8 +54,9 @@ jobs:
               {"architecture": "SCMP_ARCH_AARCH64", "subArchitectures": ["SCMP_ARCH_ARM"]}
             ],
             "syscalls": [
-              {"names": ["read","write","open","openat","close","stat","fstat","lstat","poll","select","
-          epoll_wait","fork","vfork","clone","execve","exit","exit_group","wait4","nanosleep","getpid",
+            "syscalls": [
+              {"names": ["read", "write", "open", "openat", "close", "stat", "fstat", "lstat", "poll", "select",
+              "epoll_wait", "fork", "vfork", "clone", "execve", "exit", "exit_group", "wait4", "nanosleep", "getpid",
           "getppid","getuid","geteuid","getgid","getegid","getrandom","mmap","mprotect","munmap","brk",
           "madvise","rt_sigaction","rt_sigprocmask","sigaltstack","sched_yield","sched_getaffinity",
           "socket","connect","accept","accept4","sendto","recvfrom","sendmsg","recvmsg","bind","listen",
