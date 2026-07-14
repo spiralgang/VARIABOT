@@ -54,7 +54,7 @@ plyer>=2.1.0    # Platform-specific features
 cryptography>=41.0.0
 pycryptodome>=3.19.0
 passlib>=1.7.4
-bcrypt>=4.0.0
+bcrypt>=5.0.0
 
 # Configuration and environment
 python-dotenv>=1.0.0
