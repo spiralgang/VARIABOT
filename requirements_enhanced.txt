@@ -10,7 +10,7 @@ sentencepiece>=0.1.99
 tokenizers>=0.22.2
 
 # Web frameworks and interfaces
-streamlit>=1.24.0
+streamlit>=1.59.0
 gradio>=4.28.3
 gradio-client>=0.16.0
 flask>=2.3.0
