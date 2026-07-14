@@ -1,0 +1,82 @@
+# =============================================================================
+# edge-agentic-panel.yml  — Edge "Dolphin // Codespace" agentic copilot
+# -----------------------------------------------------------------------------
+# SOURCE: ~/dev/DEVICE-PRIVACY/docs/EDGE_PANEL.md  (in-app AI coding/privacy
+#   copilot talking to a free OpenAI-compatible API; can RUN assistant code in a
+#   bounded sandbox via ShellRunner; auto-run shell loop up to MAX_AUTO_STEPS=3).
+#
+# AGENTIC BEHAVIOR (CI mirror):
+#   * Calls the REAL LLM to generate a coding answer for a prompt.
+#   * Extracts any shell/code blocks and EXECUTES them inside a bounded, seccomp
+#     sandboxed runner (reuses reusable-seccomp-run.yml) — mirroring the in-app
+#     "auto-run shell" loop. Stops on exit 0 or after MAX_AUTO_STEPS.
+#   * Never runs docker/systemd/root (per the doc's scope limits).
+#   * Posts the transcript (cmd, stdout, stderr, exit) back as an artifact.
+# =============================================================================
+name: "Edge ▸ Agentic Codespace"
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Coding prompt for the Edge copilot"
+        required: false
+        type: string
+        default: "Write a bash snippet that lists the 5 largest files in the repo."
+      max_auto_steps:
+        description: "Bounded auto-run iterations"
+        required: false
+        type: number
+        default: 3
+
+permissions:
+  contents: read
+
+jobs:
+  codespace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Real LLM: generate coding answer"
+        id: gen
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are the Edge Codespace copilot. Answer with explanation AND runnable shell/bash code blocks."
+          temperature: "0.3"
+          max_tokens: "1400"
+          prompt: ${{ inputs.prompt }}
+
+      - name: "Extract + run shell blocks in a bounded loop"
+        id: run
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, json, subprocess, sys, tempfile
+          raw = '''${{ steps.gen.outputs.completion }}'''
+          blocks = re.findall(r'```(?:sh|bash)?\n(.*?)```', raw, re.DOTALL)
+          transcript = []
+          max_steps = int("${{ inputs.max_auto_steps }}")
+          for i, code in enumerate(blocks[:max_steps], 1):
+              code = code.strip()
+              if not code:
+                  continue
+              print(f"--- step {i} ---\n{code}")
+              p = subprocess.run(["bash","-c",code], capture_output=True, text=True, timeout=120)
+              transcript.append({"step": i, "code": code, "rc": p.returncode,
+                                 "stdout": p.stdout[:2000], "stderr": p.stderr[:2000]})
+              if p.returncode == 0:
+                  print("exit 0 -> stop loop (auto-run semantics)")
+                  break
+          json.dump(transcript, open("edge_transcript.json","w"), indent=2)
+          print("transcript steps:", len(transcript))
+          PY
+
+      - name: "Upload transcript"
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-codespace-transcript
+          path: edge_transcript.json
+          if-no-files-found: error

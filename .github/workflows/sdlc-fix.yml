@@ -1,0 +1,139 @@
+# =============================================================================
+# sdlc-fix.yml  — STAGE 5 of the self-driving SDLC loop
+# -----------------------------------------------------------------------------
+# PREV: review (verdict=FIX)  NEXT: review again, or approve if attempt>=max_fix
+# CONTROL SURFACE: AGENT_INSTRUCTIONS.md (## fix), COPILOT_INSTRUCTIONS.md
+#                  (max_fix), VAULT.md (safety_caps).
+#
+# AGENTIC BEHAVIOR:
+#   * Loads the GLM-4 review from the previous stage.
+#   * Calls the REAL LLM to produce a fix patch addressing the review.
+#   * Applies it, re-runs tests, and pushes to the same branch.
+#   * Loops back to review. If attempt reaches max_fix, it force-approves via
+#     sdlc-approve.yml (safety cap so the loop always terminates).
+#   * Tracks attempt count in the PR via a label.
+# =============================================================================
+name: "SDLC ▸ fix"
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Checkout feature branch"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.branch }}
+
+      - name: "Read the review + current diff"
+        id: ctx
+        shell: bash
+        run: |
+          set -euo pipefail
+          REV=$(cat .agent/review.md 2>/dev/null | head -c 3000 || echo "no review")
+          {
+            echo "review<<R_EOF"
+            echo "$REV"
+            echo "R_EOF"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "diff<<D_EOF"
+            git diff HEAD~3 2>/dev/null | head -c 5000
+            echo "D_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Compute attempt counter"
+        id: counter
+        shell: bash
+        run: |
+          set -euo pipefail
+          MAX=${{ secrets.SDLC_MAX_FIX || '3' }}
+          ATT=$(gh pr view "${{ inputs.pr_number }}" --json labels --jq '[.labels[].name] | map(select(startswith("fix-"))) | length')
+          ATT=${ATT:-0}
+          echo "attempt=$ATT" >> "$GITHUB_OUTPUT"
+          echo "max=$MAX" >> "$GITHUB_OUTPUT"
+
+      - name: "Real LLM: generate fix patch"
+        id: genfix
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are the FIX stage of an autonomous SDLC agent. Address the reviewer's blocking points with a minimal, safe unified diff. Output ONLY a ```diff block. Never touch secrets/CI."
+          temperature: "0.2"
+          max_tokens: "2200"
+          prompt: |
+            REVIEW (must be addressed):
+            ${{ steps.ctx.outputs.review }}
+
+            CURRENT DIFF (recent):
+            ${{ steps.ctx.outputs.diff }}
+
+            Produce a unified diff that resolves the blocking review points.
+            Constraints: minimal, safe, no secret/CI file changes.
+
+      - name: "Apply fix (guarded)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, sys
+          raw = '''${{ steps.genfix.outputs.completion }}'''
+          m = re.search(r'```diff(.*?)```', raw, re.DOTALL)
+          if not m:
+              print("::error::no ```diff from model"); sys.exit(1)
+          diff = m.group(1)
+          for line in diff.splitlines():
+              if line.startswith(("+++ b/", "--- a/")):
+                  p = line[6:].strip()
+                  if any(s in p for s in (".github/", ".pem", ".key", "secrets", "id_rsa")):
+                      print("::error::fix touches protected path", p); sys.exit(1)
+          open(".agent/fix.diff","w").write(diff)
+          PY
+          git apply --3way .agent/fix.diff || { echo "::error::fix unapplicable"; exit 1; }
+
+      - name: "Re-run tests"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f package.json ] && ! npm test --silent >/dev/null 2>&1; then
+            echo "::error::tests failed after fix"; exit 1
+          fi
+          echo "tests ok / not present"
+
+      - name: "Push fix + bump attempt label"
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "agent"; git config user.email "agent@noreply.local"
+          git add -A
+          git commit -m "agent(fix): address review on #${{ inputs.pr_number }}" || echo "nothing to commit"
+          git push --force-with-lease origin "${{ inputs.branch }}"
+          ATT=$(( ${{ steps.counter.outputs.attempt }} + 1 ))
+          gh pr edit "${{ inputs.pr_number }}" --add-label "fix-$ATT"
+
+      - name: "Loop or force-approve"
+        shell: bash
+        run: |
+          set -euo pipefail
+          ATT=${{ steps.counter.outputs.attempt }}
+          MAX=${{ steps.counter.outputs.max }}
+          if [ "$ATT" -lt "$MAX" ]; then
+            gh workflow run sdlc-review.yml -f pr_number="${{ inputs.pr_number }}"
+          else
+            echo "reached max_fix=$MAX -> force approve"
+            gh workflow run sdlc-approve.yml -f pr_number="${{ inputs.pr_number }}" -f forced="true"
+          fi

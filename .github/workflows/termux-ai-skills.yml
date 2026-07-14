@@ -1,0 +1,102 @@
+# =============================================================================
+# termux-ai-skills.yml  — Termux-AI @termux-ai-TODO-INTEGRATE capabilities
+# -----------------------------------------------------------------------------
+# SOURCE: ~/dev/termux-ai-TODO.md  (the 10 simultaneous agentic skills: real-time
+#   shell/Python exec, Termux env awareness, fs/config manipulator, package mgr,
+#   network/API engine, intelligent error handler, persistent state, process mgr,
+#   AI code gen/debug, cron scheduler).
+#
+# AGENTIC BEHAVIOR (CI realization of the 10 skills):
+#   * Calls the REAL LLM to perform a Termux-oriented task (shell/py/fs/pkg/api).
+#   * Executes the returned command in a bounded shell step.
+#   * Persists a .sky_state.json-style state artifact (skill #7).
+#   * Schedules a follow-up (cron-like re-dispatch, skill #10) when asked.
+#   * Refuses unsafe operations (skill #6 error handler + guard).
+# =============================================================================
+name: "Termux-AI ▸ Skill Runner"
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Natural-language task for the Termux-AI agent"
+        required: false
+        type: string
+        default: "List the top 10 largest files in this repo and write a summary."
+      schedule_followup:
+        description: "Re-dispatch this workflow in 1h (cron-like skill #10)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  skills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Fail if no LLM key"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.LLM_API_KEY }}" ]; then
+            echo "::error::LLM_API_KEY required for Termux-AI skills"; exit 1
+          fi
+
+      - name: "Real LLM: plan a Termux-executable action"
+        id: act
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are Termux-AI (Sky). Return ONE safe bash command for the given task, runnable on Ubuntu CI. No docker/root/force-push/secret access."
+          temperature: "0.2"
+          max_tokens: "600"
+          prompt: ${{ inputs.task }}
+
+      - name: "Execute (bounded, guarded) + persist state"
+        id: exec
+        shell: bash
+        run: |
+          set -euo pipefail
+          CMD='${{ steps.act.outputs.completion }}'
+          if echo "$CMD" | grep -qiE 'force[- ]?push|GITHUB_TOKEN|secrets|\.github/|rm -rf|sudo |docker '; then
+            echo "::error::refusing unsafe command: $CMD"; exit 1
+          fi
+          echo "executing: $CMD"
+          bash -c "$CMD" | tee termux_ai_out.txt
+          # skill #7: persistent state
+          python3 - <<'PY'
+          import json, os
+          state = {}
+          if os.path.exists(".sky_state.json"):
+              state = json.load(open(".sky_state.json"))
+          state.setdefault("history", []).append({
+              "task": os.environ.get("TASK","")[:200],
+              "cmd": os.environ.get("CMD","")[:200]
+          })
+          json.dump(state, open(".sky_state.json","w"), indent=2)
+          PY
+        env:
+          TASK: ${{ inputs.task }}
+          CMD: ${{ steps.act.outputs.completion }}
+
+      - name: "Cron-like follow-up (skill #10)"
+        if: ${{ inputs.schedule_followup == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run termux-ai-skills.yml -f task="${{ inputs.task }}" -f schedule_followup=true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Upload state"
+        uses: actions/upload-artifact@v4
+        with:
+          name: termux-ai-state
+          path: |
+            .sky_state.json
+            termux_ai_out.txt
+          if-no-files-found: warn

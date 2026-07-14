@@ -1,0 +1,139 @@
+# =============================================================================
+# hermes-glm-companion.yml  — GLM coding companion (from HERMES.md)
+# -----------------------------------------------------------------------------
+# SOURCE: ~/HERMES.md  (the embedded "GLM Coding Companion" workflow spec:
+#   PR review, issue solution architect, manual code generation).
+#
+# Upgraded to be genuinely agentic + large:
+#   * PR review: real GLM-4 review, posted as a PR comment.
+#   * Issue triage: real GLM-4 solution design, posted as an issue comment.
+#   * Triage loop: if the issue is labeled agent-task, it can AUTO-HAND to the
+#     SDLC examine stage (closing the loop from chat -> autonomous build).
+#   * Manual codegen via .glm-request (workflow_dispatch).
+#   * All secrets via ${{ secrets.* }}; fails if ZHIPU_API_KEY missing.
+# =============================================================================
+name: "Hermes ▸ GLM Coding Companion"
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      request:
+        description: "Manual code-generation request (used if .glm-request absent)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  glm-companion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Fail if no Zhipu key"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.ZHIPU_API_KEY }}" ]; then
+            echo "::error::ZHIPU_API_KEY missing; GLM companion requires a real key."; exit 1
+          fi
+
+      - name: "Install SDK"
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install zhipuai
+
+      - name: "GLM PR Review"
+        if: github.event_name == 'pull_request'
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+        run: |
+          CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | tr '\n' ' ')
+          cat > review.py <<'PY'
+          import os
+          from zhipuai import ZhipuAI
+          c = ZhipuAI(api_key=os.getenv("ZHIPU_API_KEY"))
+          files = os.getenv("CHANGED_FILES", "") or "no files"
+          r = c.chat.completions.create(model="glm-4-flash", temperature=0.5, max_tokens=3000,
+            messages=[{"role":"user","content":f"""Review these changed files: {files}
+            Give: correctness, security, performance, readability, one concrete fix, one witty remark."""}])
+          open("glm_review.md","w").write("# GLM-4 Review\n\n"+r.choices[0].message.content)
+          PY
+          CHANGED_FILES="$CHANGED" python review.py
+
+      - name: "Post GLM Review"
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            const body=fs.readFileSync('glm_review.md','utf8');
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,
+              issue_number:context.issue.number, body});
+
+      - name: "GLM Issue Solution Architect"
+        if: github.event_name == 'issues' && github.event.action == 'opened'
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+        run: |
+          TITLE="${{ github.event.issue.title }}"; BODY="${{ github.event.issue.body }}"
+          cat > solution.py <<'PY'
+          import os
+          from zhipuai import ZhipuAI
+          c=ZhipuAI(api_key=os.getenv("ZHIPU_API_KEY"))
+          t=os.getenv("TITLE",""); b=os.getenv("BODY","")
+          r=c.chat.completions.create(model="glm-4-flash",temperature=0.4,max_tokens=3000,
+            messages=[{"role":"user","content":f"""Issue title: {t}\nBody: {b}
+            Provide: deep analysis, step-by-step fix plan, code example, final recommendation."""}])
+          open("glm_solution.md","w").write("# GLM-4 Solution\n\n"+r.choices[0].message.content)
+          PY
+          TITLE="$TITLE" BODY="$BODY" python solution.py
+
+      - name: "Post GLM Solution + auto-hand to SDLC if agent-task"
+        if: github.event_name == 'issues' && github.event.action == 'opened'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs=require('fs');
+            const body=fs.readFileSync('glm_solution.md','utf8');
+            await github.rest.issues.createComment({owner:context.repo.owner,repo:context.repo.repo,
+              issue_number:context.issue.number, body});
+            const labels = context.payload.issue.labels.map(l=>l.name);
+            if (labels.includes('agent-task')) {
+              await github.rest.actions.createWorkflowDispatch({
+                owner:context.repo.owner, repo:context.repo.repo,
+                workflow_id:'sdlc-examine.yml', ref:'${{ github.ref }}',
+                inputs:{ issue_number: String(context.issue.number), cycle: '0' }
+              });
+            }
+
+      - name: "GLM Manual Code Generation"
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+        run: |
+          REQ="${{ inputs.request }}"
+          if [ -z "$REQ" ] && [ -f .glm-request ]; then REQ=$(cat .glm-request); fi
+          if [ -z "$REQ" ]; then echo "no request provided"; exit 0; fi
+          cat > generate.py <<'PY'
+          import os
+          from zhipuai import ZhipuAI
+          c=ZhipuAI(api_key=os.getenv("ZHIPU_API_KEY"))
+          req=os.getenv("REQUEST","")
+          r=c.chat.completions.create(model="glm-4-flash",temperature=0.3,max_tokens=3500,
+            messages=[{"role":"user","content":f"Generate production-ready code for:\n{req}\nInclude full code, comments, usage, dependencies."}])
+          open("GLM_GENERATED_CODE.md","w").write("# GLM-4 Generated Code\n\n"+r.choices[0].message.content)
+          PY
+          REQUEST="$REQ" python generate.py

@@ -1,0 +1,178 @@
+# =============================================================================
+# sdlc-build.yml  — STAGE 3 of the self-driving SDLC loop
+# -----------------------------------------------------------------------------
+# PREV: plan  NEXT: review
+# CONTROL SURFACE: AGENT_INSTRUCTIONS.md (## build), COPILOT_INSTRUCTIONS.md
+#                  (model + temperature params), VAULT.md (guard_policy).
+#
+# AGENTIC BEHAVIOR:
+#   * Checks out the feature branch produced by plan.
+#   * Calls the REAL LLM with the plan + repo context and asks it to EMIT the
+#     actual code patch (unified diff). The model writes the change.
+#   * Applies the patch, runs the project's lint/test if present, and ONLY opens
+#     a PR if the change is non-empty and checks pass (or are absent).
+#   * Posts the diff as a PR and hands off to review.
+#   * Refuses to open a PR if the patch is empty or touches secret files.
+# =============================================================================
+name: "SDLC ▸ build"
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+      cycle:
+        required: false
+        type: string
+        default: "0"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: "Checkout feature branch"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.branch }}
+
+      - name: "Download dispatch"
+        uses: actions/download-artifact@v4
+        with:
+          name: sdlc-dispatch
+          path: .
+          if-no-files-found: warn
+
+      - name: "Load plan + repo context"
+        id: ctx
+        shell: bash
+        run: |
+          set -euo pipefail
+          PLAN=$(cat .agent/plan.md 2>/dev/null | head -c 3000 || echo "no plan")
+          {
+            echo "plan<<P_EOF"
+            echo "$PLAN"
+            echo "P_EOF"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "ls<<L_EOF"
+            git ls-files | head -80
+            echo "L_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Real LLM: generate the code patch"
+        id: gencode
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are the BUILD stage of an autonomous SDLC agent. Given a plan and repo file list, emit a unified diff that implements it. Output ONLY a unified diff (git diff format) inside a single ```diff fenced block. Never touch secret files."
+          temperature: "0.2"
+          max_tokens: "2500"
+          prompt: |
+            PLAN (issue #${{ inputs.issue_number }}):
+            ${{ steps.ctx.outputs.plan }}
+
+            Repo tracked files (sample):
+            ${{ steps.ctx.outputs.ls }}
+
+            Implement the plan as a minimal, safe, correct unified diff.
+            Constraints:
+            - Only modify files relevant to the plan.
+            - Do NOT touch .github/, secrets, CI credentials, or any *.key/*.pem.
+            - Return a single ```diff ... ``` block. No extra prose.
+
+      - name: "Extract + apply the patch (guarded)"
+        id: apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, sys
+          raw = '''${{ steps.gencode.outputs.completion }}'''
+          m = re.search(r'```diff(.*?)```', raw, re.DOTALL)
+          if not m:
+              print("::error::model returned no ```diff block"); sys.exit(1)
+          diff = m.group(1)
+          # safety: refuse secret-touching patches
+          for line in diff.splitlines():
+              if line.startswith(("+++ b/", "--- a/")):
+                  p = line[6:].strip()
+                  if any(s in p for s in (".github/", ".pem", ".key", "secrets", "id_rsa")):
+                      print("::error::patch touches a protected path:", p); sys.exit(1)
+          open(".agent/patch.diff","w").write(diff)
+          print("patch written, lines:", diff.count(chr(10)))
+          PY
+          if git apply --check .agent/patch.diff 2>/dev/null; then
+            git apply .agent/patch.diff
+            echo "applied clean"
+          else
+            echo "::warning::git apply failed, trying 3-way"
+            git apply --3way .agent/patch.diff || { echo "::error::patch unapplicable"; exit 1; }
+          fi
+
+      - name: "Run lint/test if project supports it"
+        id: test
+        shell: bash
+        run: |
+          set -euo pipefail
+          PASS=unknown
+          if [ -f package.json ]; then
+            npm ci >/dev/null 2>&1 || true
+            if npm test --silent >/dev/null 2>&1; then PASS=pass; else PASS=fail; fi
+          elif [ -f pyproject.toml ] || [ -f setup.py ]; then
+            if python -m pytest -q >/dev/null 2>&1; then PASS=pass; else PASS=fail; fi
+          fi
+          echo "tests=$PASS" >> "$GITHUB_OUTPUT"
+          if [ "$PASS" = "fail" ]; then
+            echo "::error::project tests failed; not opening PR"
+            exit 1
+          fi
+
+      - name: "Commit + open PR"
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "agent"
+          git config user.email "agent@noreply.local"
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "::error::no file changes produced; aborting PR"; exit 1
+          fi
+          git add -A
+          git commit -m "agent(build): implement issue #${{ inputs.issue_number }}"
+          git push --force-with-lease origin "${{ inputs.branch }}"
+          PR=$(gh pr create \
+            --title "agent: implement #${{ inputs.issue_number }}" \
+            --body "Automated build from SDLC loop (cycle ${{ inputs.cycle }}).
+
+          $(cat .agent/plan.md)" \
+            --label agent-task --json number --jq '.number')
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          python3 - <<PY
+          import json
+          try: d=json.load(open("dispatch.json"))
+          except Exception: d={}
+          d.update({"stage":"build","pr":int("$PR"),"issue_number":int("${{ inputs.issue_number }}"),"branch":"${{ inputs.branch }}","cycle":int("${{ inputs.cycle }}")})
+          json.dump(d, open("dispatch.json","w"), indent=2)
+          PY
+
+      - name: "Hand off to review"
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run sdlc-review.yml -f pr_number="${{ steps.pr.outputs.pr }}"
+
+      - name: "Upload dispatch"
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdlc-dispatch
+          path: dispatch.json
+          if-no-files-found: error

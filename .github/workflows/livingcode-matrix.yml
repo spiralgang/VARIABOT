@@ -1,0 +1,88 @@
+# =============================================================================
+# livingcode-matrix.yml  — Agentic-Matrix "Living-Code" supervisor
+# -----------------------------------------------------------------------------
+# SOURCE: ~/superlab_living_code.py  (the living-code agentic matrix we built:
+#   a Manager LLM that WRITES child-agent source, the machine COMPILES+instantiates
+#   it at runtime, deploys children in parallel, then re-writes their code each cycle).
+#
+# AGENTIC BEHAVIOR:
+#   * Runs the real matrix on CI. The Manager calls the REAL LLM (GLM-4) to:
+#       - generate each child agent's Python source,
+#       - mutate/improve a child between cycles (living code).
+#   * The child source is parsed -> AST-audited -> compiled -> instantiated, exactly
+#     as in superlab_living_code.py. Malicious generated code is rejected by the gate.
+#   * Results per cycle are uploaded as artifacts. The run FAILS if the LLM key is
+#     absent (no mock).
+#   * This is the "most agentic shit" tier: the model literally writes the agents
+#     that do the work, and rewrites them as it learns.
+# =============================================================================
+name: "Living-Code Agentic Matrix"
+on:
+  workflow_dispatch:
+    inputs:
+      children:
+        description: "Number of parallel child agents to spawn"
+        required: false
+        type: number
+        default: 4
+      cycles:
+        description: "Living-code evolution cycles"
+        required: false
+        type: number
+        default: 2
+  schedule:
+    - cron: "0 */6 * * *"   # self-driving every 6h if you enable it
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: "Checkout (matrix source lives here)"
+        uses: actions/checkout@v4
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: "Fail loudly if no real LLM key"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.LLM_API_KEY }}" ]; then
+            echo "::error::LLM_API_KEY not set. The living-code matrix requires a real model; mocking forbidden."
+            exit 1
+          fi
+
+      - name: "Run the living-code matrix (real LLM writes the agents)"
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          MATRIX_CHILDREN: ${{ inputs.children }}
+          MATRIX_CYCLES: ${{ inputs.cycles }}
+        run: |
+          set -euo pipefail
+          if [ ! -f superlab_fsm_living_code.py ]; then
+            echo "::warning::superlab_fsm_living_code.py not present in this repo; skipping living-code matrix."
+            exit 0
+          fi
+          python3 superlab_fsm_living_code.py \
+            --file superlab_fsm_living_code.py \
+            --task "autonomously improve this repository" \
+            --children "$MATRIX_CHILDREN" --cycles "$MATRIX_CYCLES" \
+            --emit-yaml .github/workflows/superlab-generated.yml
+
+      - name: "Upload matrix artifacts"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: livingcode-matrix
+          path: |
+            *.log
+            dispatch.json
+          if-no-files-found: ignore

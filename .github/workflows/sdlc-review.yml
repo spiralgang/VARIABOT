@@ -1,0 +1,104 @@
+# =============================================================================
+# sdlc-review.yml  — STAGE 4 of the self-driving SDLC loop
+# -----------------------------------------------------------------------------
+# PREV: build (opened PR)  NEXT: fix (verdict=FIX) or approve (verdict=APPROVE)
+# CONTROL SURFACE: AGENT_INSTRUCTIONS.md (## review), VAULT.md (guard_policy:
+#                  "never merge on ambiguous verdict, default to FIX").
+#
+# AGENTIC BEHAVIOR:
+#   * Calls the REAL LLM (GLM-4) to review the PR diff and return APPROVE/FIX.
+#   * The model's review is posted to the PR as a comment (real reasoning).
+#   * If the call fails or is ambiguous, per guard_policy it defaults to FIX
+#     so broken code is NEVER merged.
+#   * Branches: FIX -> sdlc-fix.yml ; APPROVE -> sdlc-approve.yml.
+# =============================================================================
+name: "SDLC ▸ review"
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Collect PR diff + metadata"
+        id: ctx
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "diff<<D_EOF"
+            gh pr diff "${{ inputs.pr_number }}" | head -c 6000
+            echo "D_EOF"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "meta<<M_EOF"
+            gh pr view "${{ inputs.pr_number }}" --json title,body,additions,deletions,files \
+              | head -c 2000
+            echo "M_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: "Real LLM: review the PR"
+        id: llmreview
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are a senior code reviewer (GLM-4). Review the diff. Be concise, concrete, and decisive."
+          temperature: "0.3"
+          max_tokens: "1400"
+          prompt: |
+            Review this pull request.
+
+            METADATA:
+            ${{ steps.ctx.outputs.meta }}
+
+            DIFF:
+            ${{ steps.ctx.outputs.diff }}
+
+            Produce:
+            1. A verdict line that is EXACTLY one of: VERDICT: APPROVE  or  VERDICT: FIX
+            2. 3-6 bullet points: correctness, security, performance, readability.
+            3. If FIX: the specific changes required (file:line:what).
+
+      - name: "Extract verdict (default FIX on ambiguity)"
+        id: verdict
+        shell: bash
+        run: |
+          set -euo pipefail
+          REV="${{ steps.llmreview.outputs.completion }}"
+          # post the full review to the PR
+          gh pr comment "${{ inputs.pr_number }}" --body "## GLM-4 Review
+          $REV"
+          if echo "$REV" | grep -qiE 'VERDICT:\s*APPROVE'; then
+            V=FIX_APPROVE; echo "verdict=APPROVE" >> "$GITHUB_OUTPUT"
+          else
+            # guard_policy: default to FIX (safe) on anything else/ambiguous/failure
+            echo "verdict=FIX" >> "$GITHUB_OUTPUT"
+          fi
+          # persist review text for the fix stage
+          mkdir -p .agent
+          printf '%s\n' "$REV" > .agent/review.md
+
+      - name: "Branch the loop"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.verdict.outputs.verdict }}" = "APPROVE" ]; then
+            gh workflow run sdlc-approve.yml -f pr_number="${{ inputs.pr_number }}"
+          else
+            BR=$(gh pr view "${{ inputs.pr_number }}" --json headRefName --jq '.headRefName')
+            gh workflow run sdlc-fix.yml -f pr_number="${{ inputs.pr_number }}" -f branch="$BR"
+          fi

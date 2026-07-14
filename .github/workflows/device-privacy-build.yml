@@ -1,0 +1,82 @@
+# =============================================================================
+# device-privacy-build.yml  — DEVICE-PRIVACY on-device Android build
+# -----------------------------------------------------------------------------
+# SOURCE: ~/dev/DEVICE-PRIVACY/README.md  (build_apk.sh on-device Termux build;
+#   hardware masking, privacy dashboard, optional NVIDIA_API_KEY for AI triage).
+#   Plus STORAGE.md (UserLAnd scoped-storage import/export notes).
+#
+# AGENTIC BEHAVIOR:
+#   * Runs the documented on-device build orchestration in CI (sdk + gradle).
+#   * Calls the REAL LLM to triage build failures (using NVIDIA_API_KEY if set),
+#     mirroring the doc's "interactive troubleshooting via Nvidia AI".
+#   * Posts a build report; respects scoped-storage export semantics (artifact).
+# =============================================================================
+name: "Device-Privacy ▸ Build + AI Triage"
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Set up JDK + Android SDK"
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: "Run build (best-effort, capture failure)"
+        id: bld
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          if [ -f build_apk.sh ]; then
+            bash build_apk.sh > build.log 2>&1; CODE=$?
+          elif [ -f gradlew ]; then
+            chmod +x gradlew; ./gradlew assembleDebug > build.log 2>&1; CODE=$?
+          else
+            echo "no build script found" > build.log; CODE=1
+          fi
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+
+      - name: "Real LLM: triage build failure (NVIDIA if available)"
+        if: ${{ steps.bld.outputs.code != '0' }}
+        id: triage
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are a build-triage agent. Given a failed Android build log, identify the root cause and the exact fix. Be concrete."
+          temperature: "0.2"
+          max_tokens: "1000"
+          prompt: |
+            Build failed (exit ${{ steps.bld.outputs.code }}). Log tail:
+            ${{ steps.bld.outputs.stdout }}
+            $(tail -c 3000 build.log)
+
+      - name: "Report"
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.bld.outputs.code }}" = "0" ]; then
+            echo "build: SUCCESS"
+          else
+            echo "build: FAILED — see triage comment/log"
+            echo "${{ steps.triage.outputs.completion }}" | head -c 1500
+          fi
+
+      - name: "Upload build log"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-privacy-build
+          path: build.log
+          if-no-files-found: ignore

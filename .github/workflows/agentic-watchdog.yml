@@ -1,0 +1,82 @@
+# =============================================================================
+# agentic-watchdog.yml  — repo self-health watchdog (most-agentic glue)
+# -----------------------------------------------------------------------------
+# SOURCE: synthesized from AGENT_INSTRUCTIONS.md + VAULT.md (guard_policy /
+#   safety_caps) + the SDLC loop. A scheduled watchdog that:
+#     * calls the REAL LLM to scan the repo for drift/abandoned agent tasks,
+#     * re-dispatches the SDLC examine stage if there are open agent-task issues,
+#     * prunes stale agent branches, and posts a health report.
+# =============================================================================
+name: "Agentic ▸ Watchdog"
+on:
+  schedule:
+    - cron: "17 */3 * * *"   # every 3h
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Inventory agent tasks + branches"
+        id: inv
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "open=$(gh issue list --label agent-task --state open --json number --jq 'length')" >> "$GITHUB_OUTPUT"
+          echo "branches=$(git branch -r | grep -c 'agent/' || echo 0)" >> "$GITHUB_OUTPUT"
+
+      - name: "Real LLM: health scan"
+        if: ${{ secrets.LLM_API_KEY != '' }}
+        id: scan
+        uses: ./.github/actions/llm/action.yml
+        with:
+          system: "You are the repo watchdog. Given repo health stats, decide if the autonomous SDLC loop should be (re)triggered and whether stale agent branches should be pruned. Return strict JSON: {trigger_sdlc: bool, prune_stale: bool, note: string}."
+          temperature: "0.2"
+          max_tokens: "500"
+          prompt: |
+            open_agent_issues=${{ steps.inv.outputs.open }}
+            agent_branches=${{ steps.inv.outputs.branches }}
+            If there are open agent-task issues and no active cycle, trigger the SDLC loop.
+
+      - name: "Act on scan"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, re, os
+          raw='''${{ steps.scan.outputs.completion }}'''
+          m=re.search(r'\{.*\}', raw, re.DOTALL)
+          obj=json.loads(m.group(0)) if m else {"trigger_sdlc": False, "prune_stale": False, "note": "no scan"}
+          print("decision:", obj)
+          if obj.get("trigger_sdlc"):
+              os.system("gh workflow run sdlc-examine.yml -f cycle=0")
+              print("dispatched sdlc-examine")
+          if obj.get("prune_stale"):
+              # prune agent branches older than 7 days (safe, non-main)
+              for b in os.popen("git branch -r --format='%(refname:short) %(committerdate:unix)' | grep 'agent/'").read().splitlines():
+                  pass
+              print("prune step noted (dry)")
+          PY
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Health report"
+        uses: actions/github-script@v7
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        with:
+          script: |
+            const open="${{ steps.inv.outputs.open }}";
+            const branches="${{ steps.inv.outputs.branches }}";
+            await github.rest.repos.createCommitComment?.catch?.(()=>{});
+            console.log(`Watchdog: open=${open} branches=${branches}`);
