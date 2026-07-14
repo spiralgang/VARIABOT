@@ -58,15 +58,14 @@ runs:
     - name: "Write prompt + system to files"
       id: write
       shell: bash
+      env:
+        INPUT_PROMPT: ${{ inputs.prompt }}
+        INPUT_SYSTEM: ${{ inputs.system }}
       run: |
         set -euo pipefail
         mkdir -p "$RUNNER_TEMP/llm"
-        cat > "$RUNNER_TEMP/llm/prompt.txt" <<'PROMPT_EOF'
-        ${{ inputs.prompt }}
-        PROMPT_EOF
-        cat > "$RUNNER_TEMP/llm/system.txt" <<'SYSTEM_EOF'
-        ${{ inputs.system }}
-        SYSTEM_EOF
+        printf '%s' "$INPUT_PROMPT" > "$RUNNER_TEMP/llm/prompt.txt"
+        printf '%s' "$INPUT_SYSTEM" > "$RUNNER_TEMP/llm/system.txt"
         echo "wrote prompt + system"
 
     - name: "Call the model (real request)"
