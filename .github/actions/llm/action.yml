@@ -40,13 +40,13 @@ runs:
       id: cfg
       shell: bash
       env:
-        SECRET_KEY: ${{ secrets.LLM_API_KEY }}
+        SECRET_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
         SECRET_BASE: ${{ secrets.LLM_BASE_URL }}
         SECRET_MODEL: ${{ secrets.LLM_MODEL }}
       run: |
         set -euo pipefail
         if [ -z "${SECRET_KEY}" ]; then
-          echo "::error::LLM_API_KEY secret is not set. Real LLM calls require a key; mocking is forbidden by policy."
+          echo "::error::Neither LLM_API_KEY nor ZHIPU_API_KEY secret is set. Real LLM calls require a key; mocking is forbidden by policy."
           exit 1
         fi
         {
