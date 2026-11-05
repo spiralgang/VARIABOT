@@ -1,5 +1,4 @@
 # VARIABOT: Minimal Python dependencies
-python>=3.9
 gradio>=3.0.0
 streamlit>=1.59.0
 PyGithub>=1.55

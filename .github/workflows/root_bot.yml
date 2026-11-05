@@ -1,6 +1,7 @@
 
 name: Kali Root Bot Adaptation
-on: [push, workflow_dispatch]
+# Manual only: needs magisk (not an apt package) and finalize_root.sh, which are not in this repo.
+on: [workflow_dispatch]
 jobs:
   build-adapt:
     runs-on: ubuntu-latest

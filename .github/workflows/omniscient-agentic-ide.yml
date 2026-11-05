@@ -80,6 +80,7 @@ jobs:
         id: sample
         shell: bash
         run: |
+          set +eo pipefail   # head truncation would otherwise SIGPIPE (exit 141)
           {
             echo "sample<<SAMPLE_EOF_91c"
             {
