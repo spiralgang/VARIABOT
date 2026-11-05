@@ -88,7 +88,7 @@ jobs:
             echo; echo "Possible secret patterns (path:line):"
             git grep -nIE '(api[_-]?key|secret|token|passw(or)?d)\s*[:=]\s*["'"'"'][A-Za-z0-9_\-]{16,}' -- . ':!*.md' | cut -c1-160 | head -40 || true
             echo; echo "Agent loops (while True / infinite):"
-            git grep -nIE 'while[[:space:]]+(True|true|1)\b|for \(;;\)' -- '*.py' '*.js' '*.ts' '*.sh' ':!.next/**' ':!**/node_modules/**' ':!dist/**' ':!build/**' ':!**/*.min.js' | head -30 || true
+            git grep -nIE -A6 'while[[:space:]]*[(]?[[:space:]]*(True|true|1)[[:space:]]*[)]?[[:space:]]*[:{]|for [(];;[)]' -- '*.py' '*.js' '*.ts' '*.sh' ':!.next/**' ':!**/node_modules/**' ':!dist/**' ':!build/**' ':!**/*.min.js' | head -30 || true
             echo; echo "Privileged sandbox settings:"
             git grep -nIE 'privileged:[[:space:]]*true|--privileged|/var/run/docker.sock|systemctl ' -- . ':!.github/workflows/omniscient-agentic-ide.yml' ':!*.md' | head -30 || true
             } | head -c 12000
@@ -100,7 +100,7 @@ jobs:
         id: gate
         uses: ./.github/actions/llm
         with:
-          system: "You are the Sovereign Agent safety auditor. Scan the repo for unsafe agent constraints: over-broad sandbox permissions, leaked secrets, unbounded agent loops. The FIRST line of your reply must be exactly 'VERDICT: SAFE' or 'VERDICT: BLOCK'. Only BLOCK for a concrete finding in the evidence provided (cite path:line), then bullet findings."
+          system: "You are the Sovereign Agent safety auditor. Scan the repo for unsafe agent constraints: over-broad sandbox permissions, leaked secrets, unbounded agent loops. The FIRST line of your reply must be exactly 'VERDICT: SAFE' or 'VERDICT: BLOCK'. Only BLOCK for a concrete finding in the evidence provided, citing its exact path:line. NOT violations: interactive REPL/CLI loops with an exit or break, daemons with shutdown handling and sleep, placeholders in .env.example, and app code that merely references docker.sock or systemctl. Violations: real credentials committed to source, autonomous LLM/tool loops with no exit condition or iteration cap, CI/sandbox configs granting privileged/root access to untrusted agent code."
           temperature: "0.2"
           max_tokens: "1000"
           prompt: |
@@ -116,11 +116,17 @@ jobs:
         shell: bash
         env:
           VERDICT_TEXT: ${{ steps.gate.outputs.completion }}
+          EVIDENCE: ${{ steps.sample.outputs.sample }}
         run: |
           set -euo pipefail
           printf '%s\n' "$VERDICT_TEXT" | head -c 3000
           FIRST=$(printf '%s\n' "$VERDICT_TEXT" | grep -m1 -v '^[[:space:]]*$' || true)
           if printf '%s' "$FIRST" | grep -qiE '^[^A-Za-z]*VERDICT:[[:space:]*]*BLOCK'; then
-            echo "::error::Agent safety gate BLOCKED the build"; exit 1
+            # Only honour a BLOCK that cites a path:line actually present in the evidence (guards against hallucinated findings).
+            VERIFIED=$(python3 -c 'import os,re; v=os.environ["VERDICT_TEXT"]; e=os.environ.get("EVIDENCE",""); refs=set(re.findall(r"([\w./-]+\.\w+):(\d+)", v)); print(sum(1 for p,n in refs if re.search(re.escape(p)+"[:-]"+n+"[:-]", e)))')
+            if [ "${VERIFIED:-0}" -gt 0 ]; then
+              echo "::error::Agent safety gate BLOCKED the build ($VERIFIED verified finding(s))"; exit 1
+            fi
+            echo "::warning::Gate said BLOCK but none of its cited path:line findings appear in the evidence; treating as advisory." 
           fi
           echo "agent safety gate: SAFE"

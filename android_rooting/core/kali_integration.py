@@ -729,6 +729,7 @@ Format your response as structured analysis with clear sections.
 
         report_path = os.path.join(self.temp_dir, "comprehensive_security_report.html")
 
+        nmap_line_count = len(scan_data.get('nmap_scan', {}).get('output', '').split('\n'))
         html_content = f"""
 <!DOCTYPE html>
 <html>
@@ -778,7 +779,7 @@ Format your response as structured analysis with clear sections.
                     <div class="metric-label">Security Issues</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-value">{len(scan_data.get('nmap_scan', {}).get('output', '').split('\\n'))}</div>
+                    <div class="metric-value">{nmap_line_count}</div>
                     <div class="metric-label">Network Findings</div>
                 </div>
                 <div class="metric">
