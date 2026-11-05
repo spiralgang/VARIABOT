@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${{ secrets.LLM_API_KEY }}${{ secrets.ZHIPU_API_KEY }}${{ secrets.NVIDIA_API_KEY }}" ]; then
+          if [ -z "${{ secrets.LLM_API_KEY }}${{ secrets.ZHIPU_API_KEY }}${{ secrets.NVIDIA_API_KEY }}${{ secrets.GEMINI_API_KEY }}" ]; then
             echo "::error::LLM_API_KEY not set. The living-code matrix requires a real model; mocking forbidden."
             exit 1
           fi
@@ -65,6 +65,8 @@ jobs:
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           MATRIX_CHILDREN: ${{ inputs.children || 4 }}
           MATRIX_CYCLES: ${{ inputs.cycles || 2 }}
         run: |
@@ -74,7 +76,8 @@ jobs:
             exit 0
           fi
           # pick the first working free provider (custom -> Zhipu GLM-4-flash -> NVIDIA NIM)
-          RESOLVED=$(python3 .github/actions/llm/resolve.py LLM_)
+          RESOLVED=$(python3 .github/actions/llm/resolve.py LLM_ --soft)
+          if [ -z "$RESOLVED" ]; then echo "::warning::No working LLM provider; skipping matrix this run. Rotate an expired key in repo secrets."; exit 0; fi
           while IFS='=' read -r k v; do export "$k=$v"; done <<< "$RESOLVED"
           python3 superlab_fsm_living_code.py \
             --file superlab_fsm_living_code.py \

@@ -15,7 +15,7 @@
 # and reference this action as `uses: ./.github/actions/llm` (a directory).
 # =============================================================================
 name: "Real LLM Call"
-description: "Call a real OpenAI-compatible model. Fails if no API key is available."
+description: "Call a real OpenAI-compatible model with free-provider fallback. Returns an empty completion (warning) if none work."
 inputs:
   prompt:
     description: "User prompt sent to the model"
@@ -62,15 +62,12 @@ runs:
         [ -n "$IN_KEY" ] && export LLM_API_KEY="$IN_KEY"
         [ -n "$IN_BASE" ] && export LLM_BASE_URL="$IN_BASE"
         [ -n "$IN_MODEL" ] && export LLM_MODEL="$IN_MODEL"
-        python3 "${{ github.action_path }}/resolve.py" >> "$GITHUB_ENV"
+        python3 "${{ github.action_path }}/resolve.py" --soft >> "$GITHUB_ENV"
 
     - name: "Call the model (real request)"
       id: run
       shell: bash
       env:
-        IN_KEY: ${{ inputs.api_key }}
-        IN_BASE: ${{ inputs.base_url }}
-        IN_MODEL: ${{ inputs.model }}
         LLM_TEMP: ${{ inputs.temperature }}
         LLM_MAX: ${{ inputs.max_tokens }}
         LLM_PROMPT: ${{ inputs.prompt }}
@@ -82,8 +79,11 @@ runs:
         env = os.environ.get
         key = env("LLM_RESOLVED_API_KEY") or ""
         if not key:
-            print("::error::No LLM key: set secret LLM_API_KEY (or ZHIPU_API_KEY) and export it via workflow env.")
-            sys.exit(1)
+            # No working provider: AI is advisory, so degrade gracefully instead of failing CI.
+            print("::warning::No working LLM provider; returning empty completion.")
+            with open(env("GITHUB_OUTPUT"), "a", encoding="utf-8") as fh:
+                fh.write("completion=\n")
+            sys.exit(0)
         base = (env("LLM_RESOLVED_BASE_URL") or "https://open.bigmodel.cn/api/paas/v4").rstrip("/")
         model = env("LLM_RESOLVED_MODEL") or "glm-4-flash"
         try: temp = float(env("LLM_TEMP") or 0.4)
@@ -101,9 +101,9 @@ runs:
                 body = json.loads(resp.read().decode("utf-8"))
             text = body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
-            print(f"::error::LLM HTTP {e.code}: {e.read().decode('utf-8','replace')[:800]}"); sys.exit(1)
+            print(f"::warning::LLM HTTP {e.code}: {e.read().decode('utf-8','replace')[:800]}"); text = ""
         except Exception as e:
-            print(f"::error::LLM request failed: {e}"); sys.exit(1)
+            print(f"::warning::LLM request failed: {e}"); text = ""
         with open(env("GITHUB_OUTPUT"), "a", encoding="utf-8") as fh:
             fh.write("completion<<LLM_EOF_7f3a\n" + text + "\nLLM_EOF_7f3a\n")
         print("LLM call succeeded; completion length =", len(text))

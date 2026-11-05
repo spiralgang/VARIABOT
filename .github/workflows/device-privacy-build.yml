@@ -26,6 +26,8 @@ env:
   LLM_MODEL: ${{ secrets.LLM_MODEL }}
   ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
   NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
 jobs:
   build:
@@ -56,6 +58,13 @@ jobs:
           fi
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
 
+      - name: "Capture build log tail"
+        if: ${{ steps.bld.outputs.code != '0' }}
+        id: logtail
+        shell: bash
+        run: |
+          { echo "tail<<LOGTAIL_EOF_5d2"; tail -c 3000 build.log 2>/dev/null || true; echo; echo "LOGTAIL_EOF_5d2"; } >> "$GITHUB_OUTPUT"
+
       - name: "Real LLM: triage build failure (NVIDIA if available)"
         if: ${{ steps.bld.outputs.code != '0' }}
         id: triage
@@ -66,18 +75,19 @@ jobs:
           max_tokens: "1000"
           prompt: |
             Build failed (exit ${{ steps.bld.outputs.code }}). Log tail:
-            ${{ steps.bld.outputs.stdout }}
-            $(tail -c 3000 build.log)
+            ${{ steps.logtail.outputs.tail }}
 
       - name: "Report"
         shell: bash
+        env:
+          TRIAGE: ${{ steps.triage.outputs.completion }}
         run: |
           set -euo pipefail
           if [ "${{ steps.bld.outputs.code }}" = "0" ]; then
             echo "build: SUCCESS"
           else
             echo "build: FAILED — see triage comment/log"
-            echo "${{ steps.triage.outputs.completion }}" | head -c 1500
+            printf '%s\n' "$TRIAGE" | head -c 1500
           fi
 
       - name: "Upload build log"

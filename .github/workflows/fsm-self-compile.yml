@@ -50,6 +50,8 @@ env:
   LLM_MODEL: ${{ secrets.LLM_MODEL }}
   ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
   NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
   PYTHONUNBUFFERED: "1"
 
 jobs:

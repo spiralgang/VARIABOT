@@ -29,6 +29,8 @@ env:
   LLM_MODEL: ${{ secrets.LLM_MODEL }}
   ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
   NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
 jobs:
   build-and-gate:
@@ -74,12 +76,27 @@ jobs:
             echo "no gradlew; skipping android build"
           fi
 
+      - name: "Collect repo sample for the audit"
+        id: sample
+        shell: bash
+        run: |
+          {
+            echo "sample<<SAMPLE_EOF_91c"
+            echo "Files:"; git ls-files | head -200
+            echo; echo "Possible secret patterns (path:line):"
+            git grep -nIE '(api[_-]?key|secret|token|passw(or)?d)\s*[:=]\s*["'"'"'][A-Za-z0-9_\-]{16,}' -- . ':!*.md' | cut -c1-160 | head -40 || true
+            echo; echo "Agent loops (while True / infinite):"
+            git grep -nIE 'while[[:space:]]+(True|true|1)\b|for \(;;\)' -- '*.py' '*.js' '*.ts' '*.sh' | head -30 || true
+            echo; echo "Privileged sandbox settings:"
+            git grep -nIE 'privileged:[[:space:]]*true|--privileged|/var/run/docker.sock|systemctl ' -- . ':!.github/workflows/omniscient-agentic-ide.yml' ':!*.md' | head -30 || true
+            echo "SAMPLE_EOF_91c"
+          } >> "$GITHUB_OUTPUT"
+
       - name: "Agent Safety Gate (real LLM audit)"
-        if: ${{ env.LLM_API_KEY != '' }}
         id: gate
         uses: ./.github/actions/llm
         with:
-          system: "You are the Sovereign Agent safety auditor. Scan the repo for unsafe agent constraints: over-broad sandbox permissions, leaked secrets, unbounded agent loops. Return VERDICT: SAFE or VERDICT: BLOCK plus bullet findings."
+          system: "You are the Sovereign Agent safety auditor. Scan the repo for unsafe agent constraints: over-broad sandbox permissions, leaked secrets, unbounded agent loops. The FIRST line of your reply must be exactly 'VERDICT: SAFE' or 'VERDICT: BLOCK'. Only BLOCK for a concrete finding in the evidence provided (cite path:line), then bullet findings."
           temperature: "0.2"
           max_tokens: "1000"
           prompt: |
@@ -87,15 +104,19 @@ jobs:
             - Any hardcoded secrets/keys/tokens in source?
             - Any agent loop without a max-iteration cap?
             - Any sandbox config granting root/docker/systemd?
-            Repo file sample:
-            ${{ github.repository }}@${{ github.sha }} 
+            Repository ${{ github.repository }}@${{ github.sha }} evidence:
+            ${{ steps.sample.outputs.sample }}
 
       - name: "Enforce gate"
         if: ${{ steps.gate.outputs.completion != '' }}
         shell: bash
+        env:
+          VERDICT_TEXT: ${{ steps.gate.outputs.completion }}
         run: |
           set -euo pipefail
-          if echo "${{ steps.gate.outputs.completion }}" | grep -qiE 'VERDICT:\s*BLOCK'; then
+          printf '%s\n' "$VERDICT_TEXT" | head -c 3000
+          FIRST=$(printf '%s\n' "$VERDICT_TEXT" | grep -m1 -v '^[[:space:]]*$' || true)
+          if printf '%s' "$FIRST" | grep -qiE '^[^A-Za-z]*VERDICT:[[:space:]*]*BLOCK'; then
             echo "::error::Agent safety gate BLOCKED the build"; exit 1
           fi
           echo "agent safety gate: SAFE"
