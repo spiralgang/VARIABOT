@@ -15,6 +15,7 @@ Compatible with: Python 3.7+, Android 10+, Termux
 
 import os
 import sys
+import tempfile
 import json
 import logging
 import logging.handlers
