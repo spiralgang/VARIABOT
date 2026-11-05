@@ -87,8 +87,10 @@ jobs:
         if: github.event_name == 'issues' && github.event.action == 'opened'
         env:
           ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          TITLE="${{ github.event.issue.title }}"; BODY="${{ github.event.issue.body }}"
+          TITLE="$ISSUE_TITLE"; BODY="$ISSUE_BODY"
           cat > solution.py <<'PY'
           import os
           from zhipuai import ZhipuAI

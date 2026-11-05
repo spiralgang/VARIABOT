@@ -24,6 +24,8 @@ env:
   LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
   LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
   LLM_MODEL: ${{ secrets.LLM_MODEL }}
+  ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+  NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
 
 jobs:
   build:
