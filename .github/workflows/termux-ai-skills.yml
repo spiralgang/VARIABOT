@@ -31,6 +31,11 @@ on:
 permissions:
   contents: read
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   skills:
     runs-on: ubuntu-latest
@@ -49,7 +54,7 @@ jobs:
 
       - name: "Real LLM: plan a Termux-executable action"
         id: act
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are Termux-AI (Sky). Return ONE safe bash command for the given task, runnable on Ubuntu CI. No docker/root/force-push/secret access."
           temperature: "0.2"

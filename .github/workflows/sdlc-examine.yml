@@ -39,6 +39,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
@@ -71,7 +74,7 @@ jobs:
 
       - name: "Real LLM: decide the next task"
         id: decide
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are the EXAMINE stage of an autonomous SDLC agent running on GitHub Actions. You pick a concrete, safe task and output strict JSON."
           temperature: "0.2"

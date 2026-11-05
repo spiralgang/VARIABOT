@@ -45,6 +45,9 @@ permissions:
   issues: write
 
 env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
   PYTHONUNBUFFERED: "1"
 
 jobs:
@@ -97,7 +100,7 @@ jobs:
 
       - name: "Real LLM: generate the 'examine' analysis"
         id: examine
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are the Examine stage of an autonomous SDLC agent. Survey a repo and pick a task."
           temperature: "0.3"

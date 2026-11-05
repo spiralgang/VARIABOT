@@ -20,6 +20,11 @@ on:
 permissions:
   contents: read
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -52,7 +57,7 @@ jobs:
       - name: "Real LLM: triage build failure (NVIDIA if available)"
         if: ${{ steps.bld.outputs.code != '0' }}
         id: triage
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are a build-triage agent. Given a failed Android build log, identify the root cause and the exact fix. Be concrete."
           temperature: "0.2"

@@ -23,6 +23,11 @@ on:
 permissions:
   contents: read
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   build-and-gate:
     runs-on: ubuntu-latest
@@ -68,9 +73,9 @@ jobs:
           fi
 
       - name: "Agent Safety Gate (real LLM audit)"
-        if: ${{ secrets.LLM_API_KEY != '' }}
+        if: ${{ env.LLM_API_KEY != '' }}
         id: gate
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are the Sovereign Agent safety auditor. Scan the repo for unsafe agent constraints: over-broad sandbox permissions, leaked secrets, unbounded agent loops. Return VERDICT: SAFE or VERDICT: BLOCK plus bullet findings."
           temperature: "0.2"
@@ -81,7 +86,7 @@ jobs:
             - Any agent loop without a max-iteration cap?
             - Any sandbox config granting root/docker/systemd?
             Repo file sample:
-            ${{ steps.checkout.outputs }} 
+            ${{ github.repository }}@${{ github.sha }} 
 
       - name: "Enforce gate"
         if: ${{ steps.gate.outputs.completion != '' }}

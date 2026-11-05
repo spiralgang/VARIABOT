@@ -25,6 +25,11 @@ permissions:
   pull-requests: write
   issues: read
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -54,7 +59,7 @@ jobs:
 
       - name: "Real LLM: review the PR"
         id: llmreview
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are a senior code reviewer (GLM-4). Review the diff. Be concise, concrete, and decisive."
           temperature: "0.3"

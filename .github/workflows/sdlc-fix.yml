@@ -29,6 +29,11 @@ permissions:
   pull-requests: write
   issues: read
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   fix:
     runs-on: ubuntu-latest
@@ -70,7 +75,7 @@ jobs:
 
       - name: "Real LLM: generate fix patch"
         id: genfix
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are the FIX stage of an autonomous SDLC agent. Address the reviewer's blocking points with a minimal, safe unified diff. Output ONLY a ```diff block. Never touch secrets/CI."
           temperature: "0.2"

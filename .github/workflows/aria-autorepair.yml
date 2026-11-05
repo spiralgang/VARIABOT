@@ -30,6 +30,11 @@ on:
 permissions:
   contents: read
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   autorepair:
     runs-on: ubuntu-latest
@@ -64,7 +69,7 @@ jobs:
       - name: "Real LLM: diagnose + propose fix"
         if: ${{ steps.run.outputs.code != '0' }}
         id: diag
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are ARIA, an autonomous repair agent. Given a failed command and its output, diagnose the cause and return ONE safe bash command that fixes it. No secret/CI changes."
           temperature: "0.2"

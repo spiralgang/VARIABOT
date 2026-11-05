@@ -31,6 +31,11 @@ on:
 permissions:
   contents: read
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   codespace:
     runs-on: ubuntu-latest
@@ -41,7 +46,7 @@ jobs:
 
       - name: "Real LLM: generate coding answer"
         id: gen
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are the Edge Codespace copilot. Answer with explanation AND runnable shell/bash code blocks."
           temperature: "0.3"

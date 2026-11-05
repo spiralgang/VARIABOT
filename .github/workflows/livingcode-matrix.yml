@@ -63,8 +63,8 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          MATRIX_CHILDREN: ${{ inputs.children }}
-          MATRIX_CYCLES: ${{ inputs.cycles }}
+          MATRIX_CHILDREN: ${{ inputs.children || 4 }}
+          MATRIX_CYCLES: ${{ inputs.cycles || 2 }}
         run: |
           set -euo pipefail
           if [ ! -f superlab_fsm_living_code.py ]; then

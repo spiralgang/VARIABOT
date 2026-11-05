@@ -18,6 +18,11 @@ permissions:
   issues: read
   pull-requests: write
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   watchdog:
     runs-on: ubuntu-latest
@@ -37,9 +42,9 @@ jobs:
           echo "branches=$(git branch -r | grep -c 'agent/' || echo 0)" >> "$GITHUB_OUTPUT"
 
       - name: "Real LLM: health scan"
-        if: ${{ secrets.LLM_API_KEY != '' }}
+        if: ${{ env.LLM_API_KEY != '' }}
         id: scan
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are the repo watchdog. Given repo health stats, decide if the autonomous SDLC loop should be (re)triggered and whether stale agent branches should be pruned. Return strict JSON: {trigger_sdlc: bool, prune_stale: bool, note: string}."
           temperature: "0.2"

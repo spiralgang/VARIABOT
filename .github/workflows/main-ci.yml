@@ -20,6 +20,11 @@ on:
 permissions:
   contents: read
 
+env:
+  LLM_API_KEY: ${{ secrets.LLM_API_KEY || secrets.ZHIPU_API_KEY }}
+  LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+  LLM_MODEL: ${{ secrets.LLM_MODEL }}
+
 jobs:
   run-main-checks:
     runs-on: ubuntu-latest
@@ -53,9 +58,9 @@ jobs:
           cat "$LOG"
 
       - name: "Real LLM: explain failures (if any)"
-        if: ${{ steps.checks.outcome == 'failure' && secrets.LLM_API_KEY != '' }}
+        if: ${{ steps.checks.outcome == 'failure' && env.LLM_API_KEY != '' }}
         id: explain
-        uses: ./.github/actions/llm/action.yml
+        uses: ./.github/actions/llm
         with:
           system: "You are a CI oracle. Explain why the build failed and give the minimal fix."
           temperature: "0.2"

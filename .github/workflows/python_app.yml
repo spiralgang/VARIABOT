@@ -67,17 +67,7 @@ jobs:
           pytest --cov=. --cov-report=xml --cov-report=term-missing -v
         else
           echo "No test files found, creating basic validation test"
-          python -c "
-import sys
-import os
-print('✅ Python version:', sys.version)
-print('✅ Current directory:', os.getcwd())
-print('✅ Files in directory:', os.listdir('.'))
-if os.path.exists('requirements.txt'):
-    with open('requirements.txt', 'r') as f:
-        print('✅ Requirements:', f.read().strip())
-print('✅ Basic validation passed')
-"
+          python -c "import sys, os; print('Python version:', sys.version); print('Files:', os.listdir('.')); print('Basic validation passed')"
         fi
         
     - name: Test Streamlit apps (syntax check)
@@ -86,18 +76,7 @@ print('✅ Basic validation passed')
         for file in st-*.py; do
           if [ -f "$file" ]; then
             echo "Testing syntax for $file"
-            python -c "
-try:
-    with open('$file', 'r') as f:
-        code = f.read()
-    compile(code, '$file', 'exec')
-    print('✅ $file: Syntax OK')
-except SyntaxError as e:
-    print('❌ $file: Syntax Error -', str(e))
-    exit(1)
-except Exception as e:
-    print('⚠️ $file: Warning -', str(e))
-"
+            python -m py_compile "$file" && echo "OK $file: Syntax OK" || { echo "Syntax error in $file"; exit 1; }
           fi
         done
         
