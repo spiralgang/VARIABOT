@@ -82,13 +82,16 @@ jobs:
         run: |
           {
             echo "sample<<SAMPLE_EOF_91c"
-            echo "Files:"; git ls-files | head -200
+            {
+            echo "Files:"; git ls-files | head -120
             echo; echo "Possible secret patterns (path:line):"
             git grep -nIE '(api[_-]?key|secret|token|passw(or)?d)\s*[:=]\s*["'"'"'][A-Za-z0-9_\-]{16,}' -- . ':!*.md' | cut -c1-160 | head -40 || true
             echo; echo "Agent loops (while True / infinite):"
             git grep -nIE 'while[[:space:]]+(True|true|1)\b|for \(;;\)' -- '*.py' '*.js' '*.ts' '*.sh' | head -30 || true
             echo; echo "Privileged sandbox settings:"
             git grep -nIE 'privileged:[[:space:]]*true|--privileged|/var/run/docker.sock|systemctl ' -- . ':!.github/workflows/omniscient-agentic-ide.yml' ':!*.md' | head -30 || true
+            } | head -c 12000
+            echo
             echo "SAMPLE_EOF_91c"
           } >> "$GITHUB_OUTPUT"
 
